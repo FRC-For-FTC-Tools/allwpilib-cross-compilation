@@ -1,0 +1,48 @@
+plugins {
+    id 'java'
+    id 'com.google.protobuf' version '0.9.3'
+}
+
+group 'org.frcforftc'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = '11'
+targetCompatibility = '11'
+
+repositories {
+    mavenCentral()
+    // Add additional repositories if needed
+    maven { url 'https://frcmaven.wpi.edu/ui/native/release/' } // Example repository for FRC-related libraries
+}
+
+dependencies {
+    // Protobuf Java runtime dependency
+    implementation 'com.google.protobuf:protobuf-java:3.19.6'
+}
+
+protobuf {
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.19.6'
+    }
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                java {
+                    option 'lite' // Optional: Use lite runtime if desired
+                }
+            }
+        }
+    }
+}
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs.add('-AprotoSourcePath=src/main/proto')
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir 'build/generated/source/proto/main/java'
+        }
+    }
+}
