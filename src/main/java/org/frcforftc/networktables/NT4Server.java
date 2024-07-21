@@ -1,6 +1,5 @@
-package org.frcforftc;
+package org.frcforftc.networktables;
 
-import java.lang.reflect.Array;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -68,7 +67,6 @@ public class NT4Server extends WebSocketServer {
     @Override
     public void onStart() {
         System.out.println("Server started successfully!");
-        // Send a test double value to all connected clients after starting
     }
 
     private void sendHelloMessage(WebSocket conn) {
@@ -208,10 +206,8 @@ public class NT4Server extends WebSocketServer {
             params.put("type", "double"); // Data type for the topic
             params.put("value", value); // Value to publish (if applicable)
 
-            // Optional: Include Publisher UID if needed
             params.put("pubuid", 1); // Use the appropriate publisher ID
 
-            // Optional: Add properties if needed
             ObjectNode properties = objectMapper.createObjectNode();
             // Add any properties here if needed
             params.set("properties", properties);
@@ -230,28 +226,27 @@ public class NT4Server extends WebSocketServer {
         }
     }
 
+    private static NT4Server m_server = null;
+    private static boolean m_shutdownHookAdded = false;
 
+    public static NT4Server createInstance() {
+        m_server = new NT4Server(new InetSocketAddress("localhost", 5810));
 
-    public static void main(String[] args) {
-        NT4Server server = new NT4Server(new InetSocketAddress("localhost", 5810));
-        server.start();
-
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                System.out.println("Shutting down server...");
-                server.stop(0); // Gracefully stop the server
-            } catch (InterruptedException e) {
-                System.err.println("Server shutdown interrupted");
-                Thread.currentThread().interrupt(); // Restore interrupted status
-            }
-        }));
-
-        // Keep the main thread alive to allow the server to run
-        try {
-            Thread.currentThread().join();
-        } catch (InterruptedException e) {
-            System.err.println("Main thread interrupted");
+        if (m_shutdownHookAdded) {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    System.out.println("Shutting down server...");
+                    m_server.stop(0); // Gracefully stop the server
+                } catch (InterruptedException e) {
+                    System.err.println("Server shutdown interrupted");
+                    Thread.currentThread().interrupt(); // Restore interrupted status
+                }
+            }));
+            m_shutdownHookAdded = true;
         }
+
+
+        return m_server;
     }
 
 }
