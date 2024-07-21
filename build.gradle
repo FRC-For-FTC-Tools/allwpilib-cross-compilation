@@ -11,28 +11,23 @@ targetCompatibility = '11'
 
 repositories {
     mavenCentral()
-    // Add additional repositories if needed
     maven { url 'https://frcmaven.wpi.edu/ui/native/release/' } // Example repository for FRC-related libraries
 }
 
 dependencies {
-    // Protobuf Java runtime dependency
-    implementation 'com.google.protobuf:protobuf-java:3.19.6'
-}
+    // Protobuf dependencies
+    implementation 'com.google.protobuf:protobuf-java:3.21.6'
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.15.0'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.0'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.15.0'
+    // WebSocket library for Java (e.g., Java-WebSocket)
+    implementation 'org.java-websocket:Java-WebSocket:1.5.2'
 
-protobuf {
-    protoc {
-        artifact = 'com.google.protobuf:protoc:3.19.6'
-    }
-    generateProtoTasks {
-        all().forEach { task ->
-            task.builtins {
-                java {
-                    option 'lite' // Optional: Use lite runtime if desired
-                }
-            }
-        }
-    }
+    // Other dependencies as needed
+    implementation 'org.slf4j:slf4j-api:1.7.36'
+    implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.20.0'
+    implementation 'org.apache.logging.log4j:log4j-core:2.20.0'
+    implementation 'com.google.guava:guava:31.1-jre'
 }
 
 tasks.withType(JavaCompile) {
@@ -43,6 +38,19 @@ sourceSets {
     main {
         java {
             srcDir 'build/generated/source/proto/main/java'
+        }
+    }
+}
+
+protobuf {
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.21.6'
+    }
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                java {}
+            }
         }
     }
 }
