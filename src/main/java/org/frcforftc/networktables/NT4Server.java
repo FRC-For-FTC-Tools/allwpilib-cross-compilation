@@ -1,5 +1,14 @@
 package org.frcforftc.networktables;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.msgpack.core.*;
+import org.java_websocket.WebSocket;
+import org.java_websocket.server.WebSocketServer;
+import org.java_websocket.handshake.ClientHandshake;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -9,15 +18,9 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.java_websocket.WebSocket;
-import org.java_websocket.server.WebSocketServer;
-import org.java_websocket.handshake.ClientHandshake;
-
 public class NT4Server extends WebSocketServer {
+    private static NT4Server m_server = null;
+    private static boolean m_shutdownHookAdded = false;
     private final Set<WebSocket> connections = new CopyOnWriteArraySet<>();
     private final Map<String, ObjectNode> entries = new ConcurrentHashMap<>();
     private final Map<String, Set<WebSocket>> clientSubscriptions = new ConcurrentHashMap<>();
@@ -25,6 +28,36 @@ public class NT4Server extends WebSocketServer {
 
     public NT4Server(InetSocketAddress address) {
         super(address);
+    }
+
+    static byte[] serialize(final Object obj) {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bos)) {
+            out.writeObject(obj);
+            out.flush();
+            return bos.toByteArray();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public static NT4Server createInstance() {
+        m_server = new NT4Server(new InetSocketAddress("localhost", 5810));
+
+        if (m_shutdownHookAdded) {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    System.out.println("Shutting down server...");
+                    m_server.stop(0);
+                } catch (InterruptedException e) {
+                    System.err.println("Server shutdown interrupted");
+                    Thread.currentThread().interrupt();
+                }
+            }));
+            m_shutdownHookAdded = true;
+        }
+
+        return m_server;
     }
 
     @Override
@@ -43,6 +76,7 @@ public class NT4Server extends WebSocketServer {
     @Override
     public void onMessage(WebSocket conn, String message) {
         try {
+
             System.out.println("Raw message received: " + message);
             JsonNode data = objectMapper.readTree(message);
             processMessage(conn, data);
@@ -54,32 +88,12 @@ public class NT4Server extends WebSocketServer {
     @Override
     public void onMessage(WebSocket conn, ByteBuffer message) {
         try {
-            System.out.println("Raw message received (binary): " + Arrays.toString(message.array()));
-            try {
-                processMessage(conn, objectMapper.readTree(message.array()));
-            } catch (IOException e) {
+            announceTopic("test", 12);
 
-            }
+            System.out.println("Raw message received (binary): " + Arrays.toString(message.array()));
+            decodeNT4Message(message);
         } catch (Exception e) {
             e.printStackTrace();
-        }
-    }
-
-    private String determineType(Object value) {
-        if (value instanceof Integer) {
-            return "int";
-        } else if (value instanceof Double) {
-            return "double";
-        } else if (value instanceof Float) {
-            return "float";
-        } else if (value instanceof String) {
-            return "string";
-        } else if (value instanceof Boolean) {
-            return "boolean";
-        } else if (value instanceof Byte[]) {
-            return "byte[]";
-        } else {
-            return "unknown";
         }
     }
 
@@ -93,132 +107,159 @@ public class NT4Server extends WebSocketServer {
         System.out.println("Server started successfully!");
     }
 
+    public void decodeNT4Message(ByteBuffer buffer) throws IOException {
+        //TODO: i think the order its reading is wrong, should check that (value replaced by timestamp, etc)
+        try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
+            while (unpacker.hasNext()) {
+                // Read the array header
+                int arraySize = unpacker.unpackArrayHeader();
+                if (arraySize != 4) {
+                    throw new IOException("Invalid array size for NT4 message: " + arraySize);
+                }
+
+                // Read the topic/publisher ID
+                long topicId = unpacker.unpackLong();
+                System.out.println("Topic/Publisher ID: " + topicId);
+
+                // Read the timestamp
+                long pubUID = unpacker.unpackLong();
+                System.out.println("pubUID: " + pubUID);
+
+                // Read the data type
+                int dataType = unpacker.unpackInt();
+                System.out.println("Data Type: " + dataType);
+
+                // Read the data value based on type
+                Object dataValue = null;
+                try {
+                    switch (dataType) {
+                        case 0: // boolean
+                            dataValue = unpacker.unpackBoolean();
+                            break;
+                        case 1: // double
+                            dataValue = unpacker.unpackDouble();
+                            break;
+                        case 2: // int
+                            System.out.println("INT");
+                            dataValue = unpacker.unpackLong();
+
+                            break;
+                        case 3: // float
+                            dataValue = unpacker.unpackFloat();
+                            break;
+                        case 4: // string
+                            dataValue = unpacker.unpackString();
+                            break;
+                        case 5: // binary
+                            int length = unpacker.unpackBinaryHeader();
+//                            byte[] byteArray = unpacker.readByteArray(length);
+//                            dataValue = byteArray;
+                            break;
+                        case 16: // boolean array
+                            int boolArraySize = unpacker.unpackArrayHeader();
+                            boolean[] boolArray = new boolean[boolArraySize];
+                            for (int i = 0; i < boolArraySize; i++) {
+                                boolArray[i] = unpacker.unpackBoolean();
+                            }
+                            dataValue = boolArray;
+                            break;
+                        case 17: // double array
+                            int doubleArraySize = unpacker.unpackArrayHeader();
+                            double[] doubleArray = new double[doubleArraySize];
+                            for (int i = 0; i < doubleArraySize; i++) {
+                                doubleArray[i] = unpacker.unpackDouble();
+                            }
+                            dataValue = doubleArray;
+                            break;
+                        case 18: // int array
+                            int intArraySize = unpacker.unpackArrayHeader();
+                            int[] intArray = new int[intArraySize];
+                            for (int i = 0; i < intArraySize; i++) {
+                                try {
+                                    intArray[i] = unpacker.unpackInt();
+                                } catch (MessageIntegerOverflowException e) {
+                                    intArray[i] = (int) unpacker.unpackLong();
+                                }
+                            }
+                            dataValue = intArray;
+                            break;
+                        case 19: // float array
+                            int floatArraySize = unpacker.unpackArrayHeader();
+                            float[] floatArray = new float[floatArraySize];
+                            for (int i = 0; i < floatArraySize; i++) {
+                                floatArray[i] = unpacker.unpackFloat();
+                            }
+                            dataValue = floatArray;
+                            break;
+                        case 20: // string array
+                            int stringArraySize = unpacker.unpackArrayHeader();
+                            String[] stringArray = new String[stringArraySize];
+                            for (int i = 0; i < stringArraySize; i++) {
+                                stringArray[i] = unpacker.unpackString();
+                            }
+                            dataValue = stringArray;
+                            break;
+                        default:
+                            throw new IOException("Unknown data type: " + dataType);
+                    }
+                } catch (MessageInsufficientBufferException | IOException e) {
+                    System.err.println("Error decoding data value: " + e.getMessage());
+                    e.printStackTrace();
+                }
+
+                // Process the decoded message
+                processMessage(topicId, pubUID, dataType, dataValue);
+            }
+        } catch (MessageInsufficientBufferException | IOException e) {
+            System.err.println("Error decoding NT4 message: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void processMessage(long topicId, long timestamp, int dataType, Object dataValue) {
+        // Implement message processing logic here
+        System.out.println("Data Value: " + dataValue);
+    }
 
     private void processMessage(WebSocket conn, JsonNode data) {
-        try {
-            // TODO: add ability post topics from outside of the class
-            announceTopic("runtime", System.currentTimeMillis());
-            if (data == null) return;
-            JsonNode typeNode = data.get("type");
-            if (typeNode == null) return;
-            String type = typeNode.asText();
-
-            switch (type) {
-                case "create_entry":
-                    createEntry(conn, data);
-                    break;
-                case "update_entry":
-                    updateEntry(conn, data);
-                    break;
-                case "delete_entry":
-                    deleteEntry(conn, data);
-                    break;
-                case "subscribe":
-                    subscribe(conn, data);
-                    break;
-                default:
-                    System.out.println("Unknown message type: " + type);
-            }
-
-            Thread.sleep(1);
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (data.get("type") == null) return;
+        String type = data.get("type").asText();
+        if ("subscribe".equals(type)) {
+            handleSubscribe(conn, data);
+        } else if ("publish".equals(type)) {
+            handlePublish(data);
         }
     }
 
-    private void createEntry(WebSocket conn, JsonNode data) {
-        try {
-            String entryId = UUID.randomUUID().toString();
-            ObjectNode entry = objectMapper.createObjectNode();
-            entry.put("id", entryId);
-            entry.put("key", data.get("key").asText());
-            entry.put("type", data.get("data_type").asText());
-            entry.put("value", data.get("value").asText());
-            entries.put(entryId, entry);
-            broadcastMessage(createMessage("entry_created", entry));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    private void handleSubscribe(WebSocket conn, JsonNode data) {
+        String topic = data.get("topic").asText();
+        clientSubscriptions.computeIfAbsent(topic, k -> new CopyOnWriteArraySet<>()).add(conn);
     }
 
-    private void updateEntry(WebSocket conn, JsonNode data) {
-        try {
-            String entryId = data.get("id").asText();
-            if (entries.containsKey(entryId)) {
-                entries.get(entryId).put("value", data.get("value").asText());
-                broadcastMessage(createMessage("entry_updated", entries.get(entryId)));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+    private void handlePublish(JsonNode data) {
+        String topic = data.get("topic").asText();
+        JsonNode valueNode = data.get("value");
+        Object value = null;
 
-    private void deleteEntry(WebSocket conn, JsonNode data) {
-        try {
-            String entryId = data.get("id").asText();
-            if (entries.containsKey(entryId)) {
-                entries.remove(entryId);
-                ObjectNode message = objectMapper.createObjectNode();
-                message.put("type", "entry_deleted");
-                message.put("id", entryId);
-                broadcastMessage(message);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void subscribe(WebSocket conn, JsonNode data) {
-        try {
-            String key = data.get("key").asText();
-            clientSubscriptions.computeIfAbsent(key, k -> new CopyOnWriteArraySet<>()).add(conn);
-            for (ObjectNode entry : entries.values()) {
-                if (entry.get("key").asText().equals(key)) {
-                    conn.send(objectMapper.writeValueAsString(createMessage("entry_updated", entry)));
+        switch (valueNode.getNodeType()) {
+            case NUMBER:
+                if (valueNode.isDouble()) {
+                    value = valueNode.asDouble();
+                } else if (valueNode.isInt()) {
+                    value = valueNode.asInt();
+                } else if (valueNode.isFloat()) {
+                    value = valueNode.asDouble();
                 }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+                break;
+            case BOOLEAN:
+                value = valueNode.asBoolean();
+                break;
+            case STRING:
+                value = valueNode.asText();
+                break;
         }
-    }
 
-    private ObjectNode createMessage(String type, ObjectNode data) {
-        ObjectNode message = objectMapper.createObjectNode();
-        message.put("type", type);
-        message.setAll(data);
-        return message;
-    }
-
-    private void broadcastMessage(ObjectNode message) {
-        connections.forEach(conn -> {
-            try {
-                conn.send(objectMapper.writeValueAsString(message));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
-    private void broadcastMessage(ArrayNode messages) {
-        connections.forEach(conn -> {
-            try {
-                conn.send(objectMapper.writeValueAsString(messages));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
-    static byte[] serialize(final Object obj) {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-
-        try (ObjectOutputStream out = new ObjectOutputStream(bos)) {
-            out.writeObject(obj);
-            out.flush();
-            return bos.toByteArray();
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
+        announceTopic(topic, value);
     }
 
     public void announceTopic(String topic, Object value) {
@@ -264,27 +305,33 @@ public class NT4Server extends WebSocketServer {
         broadcastMessage(messagesArray);
     }
 
-    private static NT4Server m_server = null;
-    private static boolean m_shutdownHookAdded = false;
+    private void broadcastMessage(ArrayNode messages) {
+        connections.forEach(conn -> {
+            try {
+                conn.send(objectMapper.writeValueAsString(messages));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
 
-    public static NT4Server createInstance() {
-        m_server = new NT4Server(new InetSocketAddress("localhost", 5810));
-
-        if (m_shutdownHookAdded) {
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try {
-                    System.out.println("Shutting down server...");
-                    m_server.stop(0); // Gracefully stop the server
-                } catch (InterruptedException e) {
-                    System.err.println("Server shutdown interrupted");
-                    Thread.currentThread().interrupt(); // Restore interrupted status
-                }
-            }));
-            m_shutdownHookAdded = true;
+    private String determineType(Object value) {
+        if (value instanceof Integer) {
+            return "int";
+        } else if (value instanceof Double) {
+            return "double";
+        } else if (value instanceof Float) {
+            return "float";
+        } else if (value instanceof String) {
+            return "string";
+        } else if (value instanceof Boolean) {
+            return "boolean";
+        } else if (value instanceof Byte[]) {
+            return "byte[]";
+        } else {
+            return "unknown";
         }
-
-
-        return m_server;
     }
 
 }
+
