@@ -1,5 +1,8 @@
 package org.frcforftc.networktables;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -27,7 +30,6 @@ public class NT4Server extends WebSocketServer {
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
         connections.add(conn);
-        sendHelloMessage(conn);
     }
 
     @Override
@@ -53,9 +55,31 @@ public class NT4Server extends WebSocketServer {
     public void onMessage(WebSocket conn, ByteBuffer message) {
         try {
             System.out.println("Raw message received (binary): " + Arrays.toString(message.array()));
-            // Process the binary data
+            try {
+                processMessage(conn, objectMapper.readTree(message.array()));
+            } catch (IOException e) {
+
+            }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private String determineType(Object value) {
+        if (value instanceof Integer) {
+            return "int";
+        } else if (value instanceof Double) {
+            return "double";
+        } else if (value instanceof Float) {
+            return "float";
+        } else if (value instanceof String) {
+            return "string";
+        } else if (value instanceof Boolean) {
+            return "boolean";
+        } else if (value instanceof Byte[]) {
+            return "byte[]";
+        } else {
+            return "unknown";
         }
     }
 
@@ -69,26 +93,16 @@ public class NT4Server extends WebSocketServer {
         System.out.println("Server started successfully!");
     }
 
-    private void sendHelloMessage(WebSocket conn) {
-        try {
-            ObjectNode helloMessage = objectMapper.createObjectNode();
-            helloMessage.put("type", "hello");
-            helloMessage.put("server_version", "4.0");
-            helloMessage.set("entries", objectMapper.valueToTree(entries));
-            conn.send(objectMapper.writeValueAsString(helloMessage));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     private void processMessage(WebSocket conn, JsonNode data) {
         try {
-            sendTestDoubleValueToAll(123.456);
-
+            // TODO: add ability post topics from outside of the class
+            announceTopic("runtime", System.currentTimeMillis());
             if (data == null) return;
             JsonNode typeNode = data.get("type");
             if (typeNode == null) return;
             String type = typeNode.asText();
+
             switch (type) {
                 case "create_entry":
                     createEntry(conn, data);
@@ -105,6 +119,8 @@ public class NT4Server extends WebSocketServer {
                 default:
                     System.out.println("Unknown message type: " + type);
             }
+
+            Thread.sleep(1);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -193,37 +209,59 @@ public class NT4Server extends WebSocketServer {
         });
     }
 
-    public void sendTestDoubleValueToAll(double value) {
-        try {
-            // Create the message object
-            ObjectNode message = objectMapper.createObjectNode();
-            message.put("method", "announce");
+    static byte[] serialize(final Object obj) {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
-            // Create params object
-            ObjectNode params = objectMapper.createObjectNode();
-            params.put("name", "/testValue");
-            params.put("id", 1); // Set a unique topic ID
-            params.put("type", "double"); // Data type for the topic
-            params.put("value", value); // Value to publish (if applicable)
-
-            params.put("pubuid", 1); // Use the appropriate publisher ID
-
-            ObjectNode properties = objectMapper.createObjectNode();
-            // Add any properties here if needed
-            params.set("properties", properties);
-
-            // Attach params to the message
-            message.set("params", params);
-
-            // Create an array of messages if needed
-            ArrayNode messagesArray = objectMapper.createArrayNode();
-            messagesArray.add(message);
-
-            // Broadcast the message to all connected clients
-            broadcastMessage(messagesArray);
-        } catch (Exception e) {
-            e.printStackTrace();
+        try (ObjectOutputStream out = new ObjectOutputStream(bos)) {
+            out.writeObject(obj);
+            out.flush();
+            return bos.toByteArray();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
         }
+    }
+
+    public void announceTopic(String topic, Object value) {
+        // Create the message object
+        ObjectNode message = objectMapper.createObjectNode();
+        message.put("method", "announce");
+
+        // Create params object
+        ObjectNode params = objectMapper.createObjectNode();
+        params.put("name", "/" + topic);
+        params.put("id", entries.size() + 1); // Set a unique topic ID
+
+        if (value instanceof Integer) {
+            params.put("value", (int) value); // Value to publish
+            params.put("type", "int");
+        } else if (value instanceof Double) {
+            params.put("value", (double) value);
+        } else if (value instanceof Float) {
+            params.put("value", (float) value);
+        } else if (value instanceof String) {
+            params.put("value", (String) value);
+        } else if (value instanceof Boolean) {
+            params.put("value", (boolean) value);
+        } else if (value instanceof Byte[]) {
+            params.put("value", serialize(value));
+        }
+
+        params.put("type", determineType(value));
+        params.put("pubuid", 1); // Use the publisher ID
+
+        ObjectNode properties = objectMapper.createObjectNode();
+        // Add any properties here if needed
+        params.set("properties", properties);
+
+        // Attach params to the message
+        message.set("params", params);
+
+        // Create an array of messages if needed
+        ArrayNode messagesArray = objectMapper.createArrayNode();
+        messagesArray.add(message);
+        entries.put(topic, message);
+        // Broadcast the message to all connected clients
+        broadcastMessage(messagesArray);
     }
 
     private static NT4Server m_server = null;

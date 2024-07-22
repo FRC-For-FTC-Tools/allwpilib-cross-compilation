@@ -1,20 +1,11 @@
 package org.frcforftc.networktables;
 
 public class NetworkTablesInstance {
-    private static NetworkTablesInstance m_instance;
+    private static NetworkTablesInstance m_instance = new NetworkTablesInstance();
     private NT4Server m_server = null;
 
-    public static NetworkTablesInstance create() {
-        NetworkTablesInstance instance = new NetworkTablesInstance();
-        instance.m_server = NT4Server.createInstance();
-
-        return instance;
-    }
-
-    public void start() {
-        if (m_server == null) {
-            m_server = NT4Server.createInstance();
-        }
+    public void startServer() {
+        this.m_server = NT4Server.createInstance();
 
         Runnable serverTask = () -> {
             m_server.start();
@@ -28,7 +19,15 @@ public class NetworkTablesInstance {
         m_instance = this;
     }
 
-    public NetworkTablesInstance getInstance() {
+    public void closeServer() {
+        try {
+            this.m_server.stop();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static NetworkTablesInstance getDefaultInstance() {
         return m_instance;
     }
 }
