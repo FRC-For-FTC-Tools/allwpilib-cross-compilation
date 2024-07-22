@@ -25,7 +25,6 @@ class NT4Server extends WebSocketServer {
     private static NT4Server m_server = null;
     private static boolean m_shutdownHookAdded = false;
     private final Set<WebSocket> m_connections = new CopyOnWriteArraySet<>();
-    private final Map<String, NetworkTablesEntry> m_entries = new ConcurrentHashMap<>();
     private final Map<String, Set<WebSocket>> m_clientSubscriptions = new ConcurrentHashMap<>();
     private final ObjectMapper m_objectMapper = new ObjectMapper();
 
@@ -81,6 +80,7 @@ class NT4Server extends WebSocketServer {
     public void onMessage(WebSocket conn, String message) {
         try {
             JsonNode data = m_objectMapper.readTree(message);
+            System.out.println(message);
             processMessage(conn, data);
         } catch (Exception e) {
             e.printStackTrace();
@@ -90,8 +90,8 @@ class NT4Server extends WebSocketServer {
     @Override
     public void onMessage(WebSocket conn, ByteBuffer message) {
         try {
-            announceTopic("test", 12.1);
-            announceTopic("test2", 1.1);
+            announceTopic("r", "int");
+//            announceTopic("test2", 1.1);
 
 //            System.out.println("Raw message received (binary): " + Arrays.toString(message.array()));
             decodeNT4Message(message);
@@ -286,18 +286,30 @@ class NT4Server extends WebSocketServer {
         }
     }
 
-    private void processMessage(long topicId, long timestamp, int dataType, Object dataValue) {
+    private synchronized void processMessage(long topicId, long timestamp, int dataType, Object dataValue) {
         // Implement message processing logic here
 //        System.out.println("Data Value: " + dataValue);
     }
 
-    private void processMessage(WebSocket conn, JsonNode data) {
-        if (data.get("type") == null) return;
-        String type = data.get("type").asText();
+    private synchronized void processMessage(WebSocket conn, JsonNode data) {
+
+        String type = "";
+        JsonNode rightNode = null;
+        for (JsonNode node : data) {
+            if (node.has("method")) {
+                type = node.get("method").asText();
+                rightNode = node;
+                break;
+            }
+        }
+
+        if (Objects.equals(type, "")) throw new NullPointerException("data transfered has no method attribute");
+
+        System.out.println(type);
         if ("subscribe".equals(type)) {
-            handleSubscribe(conn, data);
+//            handleSubscribe(conn, data);
         } else if ("publish".equals(type)) {
-            handlePublish(data);
+            handlePublish(rightNode);
         } else if ("announce".equals(type)) {
             JsonNode params = data.get("params");
 //            onTopicAnnounced(params.get("name").asText(), params.get("id").asLong(), params.get("pubuid").asLong());
@@ -309,14 +321,11 @@ class NT4Server extends WebSocketServer {
         m_clientSubscriptions.computeIfAbsent(topic, k -> new CopyOnWriteArraySet<>()).add(conn);
     }
 
-    private void handlePublish(JsonNode data) {
-        String topic = data.get("topic").asText();
-        JsonNode typeNode = data.get("type");
-        Object value = null;
+    private synchronized void handlePublish(JsonNode data) {
+        announceTopic(data.get("params").get("name").asText(), data.get("params").get("type").asText());
     }
 
-    public void announceTopic(String topic, Object value) {
-        topic = "/" + topic;
+    public synchronized void announceTopic(String topic, String type) {
         // Create the message object
         ObjectNode message = m_objectMapper.createObjectNode();
         message.put("method", "announce");
@@ -324,22 +333,22 @@ class NT4Server extends WebSocketServer {
         // Create params object
         ObjectNode params = m_objectMapper.createObjectNode();
         params.put("name", topic);
-        String typeString = NetworkTablesValueType.determineType(value).typeString;
 
-        NetworkTablesEntry entry = new NetworkTablesEntry(topic, message, new NetworkTablesValue(value, typeString));
+        NetworkTablesEntry entry = new NetworkTablesEntry(topic, message, new NetworkTablesValue(null, type));
 
         int id = 0;
-        if (m_entries.containsKey(topic)) {
-            entry = m_entries.get(topic);
+        Map<String, NetworkTablesEntry> entries = (NetworkTablesInstance.getDefaultInstance().getEntries());
+        if (entries.containsKey(topic)) {
+            entry = entries.get(topic);
             id = entry.id;
         } else {
-            id = m_entries.size() + 1;
-            entry.id = m_entries.size() + 1;
-            m_entries.put(topic, entry);
+            id = entries.size() + 1;
+            entry.id = entries.size() + 1;
+            entries.put(topic, entry);
         }
         params.put("id", id); // Set a unique topic ID
 
-        params.put("type", typeString);
+        params.put("type", type);
         params.put("pubuid", id); // Use the publisher ID
 
         ObjectNode properties = m_objectMapper.createObjectNode();
@@ -355,8 +364,8 @@ class NT4Server extends WebSocketServer {
         // Broadcast the message to all connected clients
 
         broadcast(messagesArray.toString());
-        publishEntry(entry);
-        onTopicAnnounced(topic, id, id, NetworkTablesValueType.getFromString(typeString).id, value);
+//        publishEntry(entry);
+        onTopicAnnounced(topic, id, id, NetworkTablesValueType.getFromString(type).id, null);
     }
 
     private void publishEntry(NetworkTablesEntry entry) {
@@ -381,12 +390,12 @@ class NT4Server extends WebSocketServer {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-        m_publisherUIDSMap.put(pubUID, m_entries.get(topic));
-        try {
-            decodeNT4Message(encodeNT4Message(System.currentTimeMillis(), topicId, pubUID, dataType, dataValue));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        m_publisherUIDSMap.put(pubUID, NetworkTablesInstance.getDefaultInstance().getEntries().get(topic));
+//        try {
+////            decodeNT4Message(encodeNT4Message(System.currentTimeMillis(), topicId, pubUID, dataType, dataValue));
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
     }
 
 }

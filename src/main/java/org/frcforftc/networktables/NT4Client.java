@@ -2,6 +2,8 @@ package org.frcforftc.networktables;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessagePacker;
 import org.msgpack.core.MessageUnpacker;
@@ -19,10 +21,15 @@ public class NT4Client extends WebSocketClient {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, Integer> topicIdMap = new HashMap<>();
+    boolean sentMessage = false;
     private int nextTopicId = 1;
 
     public NT4Client(URI serverUri) {
         super(serverUri);
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            this.close(1000, "Closed connections");
+        }));
     }
 
     @Override
@@ -51,7 +58,12 @@ public class NT4Client extends WebSocketClient {
 
     void processMessage(JsonNode node) {
         //TODO
-        System.out.println("message: " + node.toString());
+        if (!sentMessage) {
+            publishEntry(new NetworkTablesEntry("/test", null, new NetworkTablesValue(1, NetworkTablesValueType.Int)));
+            sentMessage = true;
+        }
+
+//        System.out.println("message: " + node);
     }
 
     @Override
@@ -72,6 +84,22 @@ public class NT4Client extends WebSocketClient {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private void publishEntry(NetworkTablesEntry entry) {
+        ObjectNode message = objectMapper.createObjectNode();
+        message.put("method", "publish");
+        ObjectNode params = objectMapper.createObjectNode();
+        params.put("name", entry.getTopic());
+        params.put("pubuid", entry.id);
+        params.put("type", entry.getLocalValue().getType().typeString);
+        ObjectNode properties = objectMapper.createObjectNode();
+        // Add any properties here if needed
+        params.set("properties", properties);
+        message.set("params", params);
+        ArrayNode messageArray = objectMapper.createArrayNode();
+        messageArray.add(message);
+        send(messageArray.toString());
     }
 
     private ByteBuffer encodeNT4Message(long timestamp, long topicId, long pubUID, int dataType, Object dataValue) throws IOException {
