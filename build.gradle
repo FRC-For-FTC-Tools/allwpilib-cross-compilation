@@ -16,7 +16,6 @@ repositories {
 
 dependencies {
     // Protobuf dependencies
-    implementation 'com.google.protobuf:protobuf-java:3.21.6'
     implementation 'com.fasterxml.jackson.core:jackson-core:2.15.0'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.0'
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.15.0'
@@ -39,19 +38,6 @@ sourceSets {
     main {
         java {
             srcDir 'build/generated/source/proto/main/java'
-        }
-    }
-}
-
-protobuf {
-    protoc {
-        artifact = 'com.google.protobuf:protoc:3.21.6'
-    }
-    generateProtoTasks {
-        all().forEach { task ->
-            task.builtins {
-                java {}
-            }
         }
     }
 }
