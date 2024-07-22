@@ -66,6 +66,7 @@ class NT4Server extends WebSocketServer {
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
         m_connections.add(conn);
+        System.out.println("new connection:" + conn.getResourceDescriptor());
     }
 
     @Override
@@ -79,7 +80,6 @@ class NT4Server extends WebSocketServer {
     @Override
     public void onMessage(WebSocket conn, String message) {
         try {
-            System.out.println("Json message received: " + message);
             JsonNode data = m_objectMapper.readTree(message);
             processMessage(conn, data);
         } catch (Exception e) {
@@ -93,7 +93,7 @@ class NT4Server extends WebSocketServer {
             announceTopic("test", 12.1);
             announceTopic("test2", 1.1);
 
-            System.out.println("Raw message received (binary): " + Arrays.toString(message.array()));
+//            System.out.println("Raw message received (binary): " + Arrays.toString(message.array()));
             decodeNT4Message(message);
         } catch (Exception e) {
             e.printStackTrace();
@@ -197,14 +197,14 @@ class NT4Server extends WebSocketServer {
                 // Read the topic/publisher ID
                 long topicID = unpacker.unpackLong();
                 if (topicID < 0) return;
-                System.out.println("id: " + topicID);
+//                System.out.println("id: " + topicID);
                 // Read the timestamp
                 long stamp = unpacker.unpackLong();
-                System.out.println("stamp: " + stamp);
+//                System.out.println("stamp: " + stamp);
 
                 // Read the data type
                 int dataType = unpacker.unpackInt();
-                System.out.println("Data Type: " + dataType);
+//                System.out.println("Data Type: " + dataType);
 
                 // Read the data value based on type
                 Object dataValue = null;
@@ -288,7 +288,7 @@ class NT4Server extends WebSocketServer {
 
     private void processMessage(long topicId, long timestamp, int dataType, Object dataValue) {
         // Implement message processing logic here
-        System.out.println("Data Value: " + dataValue);
+//        System.out.println("Data Value: " + dataValue);
     }
 
     private void processMessage(WebSocket conn, JsonNode data) {
@@ -316,20 +316,22 @@ class NT4Server extends WebSocketServer {
     }
 
     public void announceTopic(String topic, Object value) {
+        topic = "/" + topic;
         // Create the message object
         ObjectNode message = m_objectMapper.createObjectNode();
         message.put("method", "announce");
 
         // Create params object
         ObjectNode params = m_objectMapper.createObjectNode();
-        params.put("name", "/" + topic);
+        params.put("name", topic);
         String typeString = NetworkTablesValueType.determineType(value).typeString;
 
         NetworkTablesEntry entry = new NetworkTablesEntry(topic, message, new NetworkTablesValue(value, typeString));
 
         int id = 0;
         if (m_entries.containsKey(topic)) {
-            id = m_entries.get(topic).id;
+            entry = m_entries.get(topic);
+            id = entry.id;
         } else {
             id = m_entries.size() + 1;
             entry.id = m_entries.size() + 1;
@@ -337,19 +339,6 @@ class NT4Server extends WebSocketServer {
         }
         params.put("id", id); // Set a unique topic ID
 
-        if (value instanceof Integer) {
-            params.put("value", (int) value); // Value to publish
-        } else if (value instanceof Double) {
-            params.put("value", (double) value);
-        } else if (value instanceof Float) {
-            params.put("value", (float) value);
-        } else if (value instanceof String) {
-            params.put("value", (String) value);
-        } else if (value instanceof Boolean) {
-            params.put("value", (boolean) value);
-        } else if (value instanceof Byte[]) {
-            params.put("value", serialize(value));
-        }
         params.put("type", typeString);
         params.put("pubuid", id); // Use the publisher ID
 
@@ -364,8 +353,26 @@ class NT4Server extends WebSocketServer {
         ArrayNode messagesArray = m_objectMapper.createArrayNode();
         messagesArray.add(message);
         // Broadcast the message to all connected clients
+
         broadcast(messagesArray.toString());
-        onTopicAnnounced(topic, id, 1, NetworkTablesValueType.getFromString(typeString).id, value);
+        publishEntry(entry);
+        onTopicAnnounced(topic, id, id, NetworkTablesValueType.getFromString(typeString).id, value);
+    }
+
+    private void publishEntry(NetworkTablesEntry entry) {
+        ObjectNode message = m_objectMapper.createObjectNode();
+        message.put("method", "publish");
+        ObjectNode params = m_objectMapper.createObjectNode();
+        params.put("name", entry.getTopic());
+        params.put("pubuid", entry.id);
+        params.put("type", entry.getLocalValue().getType().typeString);
+        ObjectNode properties = m_objectMapper.createObjectNode();
+        // Add any properties here if needed
+        params.set("properties", properties);
+        message.set("params", params);
+        ArrayNode messageArray = m_objectMapper.createArrayNode();
+        messageArray.add(message);
+        broadcast(messageArray.toString());
     }
 
     public void onTopicAnnounced(String topic, int topicId, int pubUID, int dataType, Object dataValue) {

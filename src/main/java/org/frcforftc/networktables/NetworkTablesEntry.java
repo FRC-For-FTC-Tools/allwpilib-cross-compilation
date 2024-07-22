@@ -45,4 +45,8 @@ public class NetworkTablesEntry {
             e.apply(entry, value);
         }
     }
+
+    public String getTopic() {
+        return m_topic;
+    }
 }
