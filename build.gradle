@@ -1,7 +1,6 @@
 plugins {
     id 'maven-publish'
     id 'java'
-    id 'com.google.protobuf' version '0.9.3'
 }
 
 group 'org.frcforftc'
@@ -12,7 +11,6 @@ targetCompatibility = '11'
 
 repositories {
     mavenCentral()
-    maven { url 'https://frcmaven.wpi.edu/ui/native/release/' } // Example repository for FRC-related libraries
 }
 
 dependencies {
@@ -42,6 +40,7 @@ sourceSets {
         }
     }
 }
+
 publishing {
     publications {
         maven(MavenPublication) {

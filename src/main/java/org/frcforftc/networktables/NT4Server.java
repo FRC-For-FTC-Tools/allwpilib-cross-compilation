@@ -4,21 +4,21 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.msgpack.core.*;
 import org.java_websocket.WebSocket;
-import org.java_websocket.server.WebSocketServer;
 import org.java_websocket.handshake.ClientHandshake;
+import org.java_websocket.server.WebSocketServer;
+import org.msgpack.core.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
-
-import javax.annotation.processing.SupportedSourceVersion;
 
 public class NT4Server extends WebSocketServer {
     static final Map<Integer, NetworkTablesEntry> m_publisherUIDSMap = new HashMap<>();
@@ -69,8 +69,12 @@ public class NT4Server extends WebSocketServer {
         m_connections.add(conn);
         System.out.println("CLIENT CONNECTED");
         //Test topic:
-        //createTopic("test", 12.1);
+//        createTopic("test", 12.1);
+        for (var key : m_entries.keySet()) {
+            NetworkTablesEntry entry = m_entries.get(key);
 
+            createTopic(entry.getTopic(), entry.getValue().get());
+        }
     }
 
     @Override
@@ -100,11 +104,11 @@ public class NT4Server extends WebSocketServer {
 
             NetworkTablesMessage decodedMessage = decodeNT4Message(message);
             if (decodedMessage.id == -1) {
-                heartbeat(conn, (Long) decodedMessage.dataValue);
+//                heartbeat(conn, (Long) decodedMessage.dataValue);
             } else {
                 if (m_publisherUIDSMap.containsKey(decodedMessage.id)) {
                     NetworkTablesEntry entry = m_publisherUIDSMap.get(decodedMessage.id);
-                    entry.setLocalValue(new NetworkTablesValue( decodedMessage.dataValue, NetworkTablesValueType.getFromId(decodedMessage.dataType)));
+                    entry.setLocalValue(new NetworkTablesValue(decodedMessage.dataValue, NetworkTablesValueType.getFromId(decodedMessage.dataType)));
                     for (Set<WebSocket> subscribers : m_clientSubscriptions.values()) {
                         broadcast(encodeNT4Message(System.currentTimeMillis(), entry.id, decodedMessage.id, decodedMessage.dataType, decodedMessage.dataValue), subscribers);
                     }
@@ -142,7 +146,7 @@ public class NT4Server extends WebSocketServer {
                 packer.packDouble((Double) dataValue);
                 break;
             case 2: // int
-                packer.packLong((Long) dataValue);
+                packer.packLong((Integer) dataValue);
                 break;
             case 3: // float
                 packer.packFloat((Float) dataValue);
@@ -212,7 +216,6 @@ public class NT4Server extends WebSocketServer {
                 // Read the topic/publisher ID
                 long topicID = unpacker.unpackLong();
                 System.out.println("id: " + topicID);
-
                 // Read the timestamp
                 long stamp = unpacker.unpackLong();
 //                System.out.println("stamp: " + stamp);
@@ -303,14 +306,6 @@ public class NT4Server extends WebSocketServer {
         return new NetworkTablesMessage(0, 0, 0, 0);
     }
 
-//    private void processMessage(long topicId, long timestamp, int dataType, Object dataValue) {
-//        // Implement message processing logic here
-//        System.out.println("yolo");
-//        System.out.println("Data Value: " + dataValue);
-//
-//
-//    }
-
     private void processMessage(WebSocket conn, JsonNode data) throws IOException {
         if (data.get("method") == null) return;
         String type = data.get("method").asText();
@@ -320,28 +315,23 @@ public class NT4Server extends WebSocketServer {
         } else if ("publish".equals(type)) {
             handlePublish(conn, data);
         }
-   }
+    }
 
     private void handleSubscribe(WebSocket conn, JsonNode data) throws IOException {
         String topic = data.get("params").get("topics").get(0).asText().replaceAll("/", "");
         if (m_entries.containsKey(topic)) {
-            System.out.println("SUBSCRIBED: "+topic);
+            System.out.println("SUBSCRIBED: " + topic);
             m_clientSubscriptions.computeIfAbsent(topic, k -> new CopyOnWriteArraySet<>()).add(conn);
-            conn.send(encodeNT4Message(System.currentTimeMillis(), m_entries.get(topic).id, 0, NetworkTablesValueType.getFromString(m_entries.get(topic).getLocalValue().getType().typeString).id, m_entries.get(topic).getLocalValue().getAs()));
+            conn.send(encodeNT4Message(System.currentTimeMillis(), m_entries.get(topic).id, 0, NetworkTablesValueType.getFromString(m_entries.get(topic).getValue().getType().typeString).id, m_entries.get(topic).getValue().getAs()));
         } else {
-            System.out.println("FAILED TO SUBSCRIBE TO "+topic + " AVAILABLE TOPICS ARE:");
+            System.out.println("FAILED TO SUBSCRIBE TO " + topic + " AVAILABLE TOPICS ARE:");
             System.out.println(m_entries.keySet());
         }
     }
 
 
     private void handlePublish(WebSocket conn, JsonNode data) {
-        String topic = data.get("topic").asText();
-        JsonNode typeNode = data.get("type");
-        Object value = null;
-        int pubuid = data.get("pubuid").asInt();
-        announceTopic(topic, conn, pubuid);
-
+//        createTopic(data.get("params").get("name").asText(), 0);
     }
 
     private void heartbeat(WebSocket conn, long client_time) throws IOException {
@@ -375,7 +365,6 @@ public class NT4Server extends WebSocketServer {
         messagesArray.add(message);
         // Broadcast the message to all connected clients
         conn.send(encodeNT4Message(System.currentTimeMillis(), id, 0, 2, client_time));
-        // onTopicAnnounced("stamp", id, 1, NetworkTablesValueType.getFromString(typeString).id, 0);
     }
 
     public NetworkTablesEntry createTopic(String topic, Object value) {
@@ -390,16 +379,23 @@ public class NT4Server extends WebSocketServer {
 
         NetworkTablesEntry entry = new NetworkTablesEntry(topic, message, new NetworkTablesValue(value, typeString));
 
-        int id = 0;
+        int id;
         if (m_entries.containsKey(topic)) {
             id = m_entries.get(topic).id;
+            entry = m_entries.get(topic);
+
+            if (value != entry.getValue().get()) {
+                System.out.println("Value updated from: " + entry.getValue().get().toString() + " to: " + value.toString());
+                m_entries.get(topic).update(value);
+            }
+
         } else {
             id = m_entries.size() + 1;
             entry.id = m_entries.size() + 1;
             m_entries.put(topic, entry);
         }
         params.put("id", id); // Set a unique topic ID
-
+        System.out.printf("id: %o \n", id);
         params.put("type", typeString);
         params.put("pubuid", id); // Use the publisher ID
 
@@ -418,65 +414,7 @@ public class NT4Server extends WebSocketServer {
         return entry;
     }
 
-    public void announceTopic(String topic, WebSocket conn, int pubuid) {
-        // Create the message object
-        ObjectNode message = m_objectMapper.createObjectNode();
-        message.put("method", "announce");
-
-        // Create params object
-        ObjectNode params = m_objectMapper.createObjectNode();
-        params.put("name", "/" + topic);
-
-        int id = 0;
-        id = m_entries.get(topic).id;
-        NetworkTablesEntry entry = m_entries.get(topic);
-        m_publisherUIDSMap.put(pubuid, entry);
-        params.put("id", id); // Set a unique topic ID
-
-//        if (value instanceof Integer) {
-//            params.put("value", (int) value); // Value to publish
-//        } else if (value instanceof Double) {
-//            params.put("value", (double) value);
-//        } else if (value instanceof Float) {
-//            params.put("value", (float) value);
-//        } else if (value instanceof String) {
-//            params.put("value", (String) value);
-//        } else if (value instanceof Boolean) {
-//            params.put("value", (boolean) value);
-//        } else if (value instanceof Byte[]) {
-//            params.put("value", serialize(value));
-//        }
-//        params.put("type", typeString);
-        params.put("pubuid", pubuid); // Use the publisher ID
-
-        ObjectNode properties = m_objectMapper.createObjectNode();
-        // Add any properties here if needed
-        params.set("properties", properties);
-
-        // Attach params to the message
-        message.set("params", params);
-
-        // Create an array of messages if needed
-        ArrayNode messagesArray = m_objectMapper.createArrayNode();
-        messagesArray.add(message);
-        // Broadcast the message to all connected clients
-        conn.send(messagesArray.toString());
-        //onTopicAnnounced(topic, id, 1, NetworkTablesValueType.getFromString(typeString).id, value);
+    public Map<String, NetworkTablesEntry> getEntries() {
+        return m_entries;
     }
-
-    public void onTopicAnnounced(String topic, int topicId, int pubUID, int dataType, Object dataValue) {
-        try {
-            Thread.sleep(10);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-        m_publisherUIDSMap.put(pubUID, NetworkTablesInstance.getDefaultInstance().getEntries().get(topic));
-//        try {
-////            decodeNT4Message(encodeNT4Message(System.currentTimeMillis(), topicId, pubUID, dataType, dataValue));
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
-    }
-
-
 }

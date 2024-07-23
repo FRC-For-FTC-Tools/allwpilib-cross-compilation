@@ -2,7 +2,6 @@ package org.frcforftc.networktables;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -36,7 +35,7 @@ public class NetworkTablesInstance {
      */
     public void start() {
         startNT4Server();
-      //  startNT4Client();
+        //  startNT4Client();
 
         m_instance = this;
     }
@@ -66,7 +65,13 @@ public class NetworkTablesInstance {
         m_client.connect();
     }
 
+    public void put(String topic, Object value) {
+        m_server.createTopic(topic, value);
+    }
 
+    public NetworkTablesEntry get(String topic) {
+        return m_server.getEntries().get(topic);
+    }
 
     /**
      * Stops the NT4 server.

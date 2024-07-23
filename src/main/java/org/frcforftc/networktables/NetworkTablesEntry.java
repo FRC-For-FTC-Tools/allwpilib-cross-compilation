@@ -32,7 +32,7 @@ public class NetworkTablesEntry {
         this.m_jsonData = data;
     }
 
-    public NetworkTablesValue getLocalValue() {
+    public NetworkTablesValue getValue() {
         return m_localValue;
     }
 

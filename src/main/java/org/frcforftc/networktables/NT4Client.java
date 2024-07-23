@@ -4,11 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.java_websocket.client.WebSocketClient;
+import org.java_websocket.handshake.ServerHandshake;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessagePacker;
 import org.msgpack.core.MessageUnpacker;
-import org.java_websocket.client.WebSocketClient;
-import org.java_websocket.handshake.ServerHandshake;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -92,7 +92,7 @@ public class NT4Client extends WebSocketClient {
         ObjectNode params = objectMapper.createObjectNode();
         params.put("name", entry.getTopic());
         params.put("pubuid", entry.id);
-        params.put("type", entry.getLocalValue().getType().typeString);
+        params.put("type", entry.getValue().getType().typeString);
         ObjectNode properties = objectMapper.createObjectNode();
         // Add any properties here if needed
         params.set("properties", properties);
