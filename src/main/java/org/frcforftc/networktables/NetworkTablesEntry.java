@@ -36,7 +36,7 @@ public class NetworkTablesEntry {
         return m_localValue;
     }
 
-    public void setLocalValue(NetworkTablesValue newValue) {
+    public void setValue(NetworkTablesValue newValue) {
         this.m_localValue = newValue;
     }
 

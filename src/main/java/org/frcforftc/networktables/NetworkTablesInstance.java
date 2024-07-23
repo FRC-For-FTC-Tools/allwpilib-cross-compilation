@@ -7,42 +7,51 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Singleton class representing the NetworkTables instance.
- * Provides methods to start and stop the NT4 client and server.
+ * Provides methods to start and stop the {@link NT4Client} and {@link NT4Server}.
  */
 public class NetworkTablesInstance {
-    // Singleton instance of NetworkTablesInstance
-    private static NetworkTablesInstance m_instance = new NetworkTablesInstance();
+
+    /**
+     * Singleton instance of {@link NetworkTablesInstance}.
+     */
+    private static final NetworkTablesInstance m_instance = new NetworkTablesInstance();
+
+    /**
+     * A map to store NetworkTables entries.
+     */
     private final Map<String, NetworkTablesEntry> m_entries = new ConcurrentHashMap<>();
+
+    /**
+     * NT4Client instance.
+     */
     private NT4Client m_client = null;
+
+    /**
+     * NT4Server instance.
+     */
     private NT4Server m_server = null;
 
     /**
-     * Returns the default singleton instance of NetworkTablesInstance.
+     * Returns the default singleton instance of {@link NetworkTablesInstance}.
      *
-     * @return the singleton instance of NetworkTablesInstance
+     * @return the singleton instance of {@link NetworkTablesInstance}
      */
     public static NetworkTablesInstance getDefaultInstance() {
         return m_instance;
     }
 
+    /**
+     * Returns the map of NetworkTables entries.
+     *
+     * @return the map of NetworkTables entries
+     */
     public Map<String, NetworkTablesEntry> getEntries() {
         return m_entries;
     }
 
     /**
-     * Starts the NT4 client and server.
-     * This method sets the singleton instance to the current instance.
-     */
-    public void start() {
-        startNT4Server();
-        //  startNT4Client();
-
-        m_instance = this;
-    }
-
-    /**
      * Starts the NT4 server.
-     * Creates an instance of NT4Server and starts it.
+     * Creates an instance of {@link NT4Server} and starts it.
      */
     public void startNT4Server() {
         this.m_server = NT4Server.createInstance();
@@ -51,7 +60,7 @@ public class NetworkTablesInstance {
 
     /**
      * Starts the NT4 client.
-     * Creates an instance of NT4Client and connects it to the server.
+     * Creates an instance of {@link NT4Client} and connects it to the server.
      *
      * @throws RuntimeException if the URI syntax is invalid
      */
@@ -65,17 +74,29 @@ public class NetworkTablesInstance {
         m_client.connect();
     }
 
+    /**
+     * Puts a value into the specified topic.
+     *
+     * @param topic the topic name
+     * @param value the value to put
+     */
     public void put(String topic, Object value) {
         m_server.createTopic(topic, value);
     }
 
+    /**
+     * Gets the {@link NetworkTablesEntry} for the specified topic.
+     *
+     * @param topic the topic name
+     * @return the {@link NetworkTablesEntry} for the specified topic
+     */
     public NetworkTablesEntry get(String topic) {
         return m_server.getEntries().get(topic);
     }
 
     /**
      * Stops the NT4 server.
-     * Attempts to stop the server and throws a RuntimeException if interrupted.
+     * Attempts to stop the server and throws a {@link RuntimeException} if interrupted.
      */
     public void closeServer() {
         try {

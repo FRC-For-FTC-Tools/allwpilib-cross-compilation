@@ -88,10 +88,9 @@ public class NT4Server extends WebSocketServer {
     @Override
     public void onMessage(WebSocket conn, String message) {
         try {
-            System.out.println("Json message received: " + message);
+//            System.out.println("Json message received: " + message);
             JsonNode data = m_objectMapper.readTree(message).get(0);
-            System.out.println(data);
-
+//            System.out.println(data);
             processMessage(conn, data);
         } catch (Exception e) {
             e.printStackTrace();
@@ -108,7 +107,7 @@ public class NT4Server extends WebSocketServer {
             } else {
                 if (m_publisherUIDSMap.containsKey(decodedMessage.id)) {
                     NetworkTablesEntry entry = m_publisherUIDSMap.get(decodedMessage.id);
-                    entry.setLocalValue(new NetworkTablesValue(decodedMessage.dataValue, NetworkTablesValueType.getFromId(decodedMessage.dataType)));
+                    entry.setValue(new NetworkTablesValue(decodedMessage.dataValue, NetworkTablesValueType.getFromId(decodedMessage.dataType)));
                     for (Set<WebSocket> subscribers : m_clientSubscriptions.values()) {
                         broadcast(encodeNT4Message(System.currentTimeMillis(), entry.id, decodedMessage.id, decodedMessage.dataType, decodedMessage.dataValue), subscribers);
                     }
@@ -215,7 +214,8 @@ public class NT4Server extends WebSocketServer {
 
                 // Read the topic/publisher ID
                 long topicID = unpacker.unpackLong();
-                System.out.println("id: " + topicID);
+//                System.out.println("id: " + topicID);
+
                 // Read the timestamp
                 long stamp = unpacker.unpackLong();
 //                System.out.println("stamp: " + stamp);
@@ -295,6 +295,11 @@ public class NT4Server extends WebSocketServer {
                     e.printStackTrace();
                 }
 
+                if (m_publisherUIDSMap.containsKey((int) topicID)) {
+                    NetworkTablesEntry entry = m_publisherUIDSMap.get((int) topicID);
+                    entry.setValue(new NetworkTablesValue(dataValue, NetworkTablesValueType.determineType(dataValue)));
+                    m_publisherUIDSMap.replace((int) topicID, entry);
+                }
                 // Process the decoded message
                 return new NetworkTablesMessage(topicID, stamp, dataType, dataValue);
             }
@@ -332,6 +337,13 @@ public class NT4Server extends WebSocketServer {
 
     private void handlePublish(WebSocket conn, JsonNode data) {
 //        createTopic(data.get("params").get("name").asText(), 0);
+        JsonNode params = data.get("params");
+        String topic = params.get("name").asText().substring(1);
+        if (m_entries.containsKey(topic)) {
+            int pubUID = params.get("pubuid").asInt();
+            m_entries.get(topic).id = pubUID;
+            m_publisherUIDSMap.put(pubUID, m_entries.get(topic));
+        }
     }
 
     private void heartbeat(WebSocket conn, long client_time) throws IOException {
@@ -385,7 +397,7 @@ public class NT4Server extends WebSocketServer {
             entry = m_entries.get(topic);
 
             if (value != entry.getValue().get()) {
-                System.out.println("Value updated from: " + entry.getValue().get().toString() + " to: " + value.toString());
+//                System.out.println("Value updated from: " + entry.getValue().get().toString() + " to: " + value.toString());
                 m_entries.get(topic).update(value);
             }
 
@@ -395,7 +407,7 @@ public class NT4Server extends WebSocketServer {
             m_entries.put(topic, entry);
         }
         params.put("id", id); // Set a unique topic ID
-        System.out.printf("id: %o \n", id);
+
         params.put("type", typeString);
         params.put("pubuid", id); // Use the publisher ID
 
