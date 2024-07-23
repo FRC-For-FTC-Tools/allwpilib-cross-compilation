@@ -296,8 +296,12 @@ public class NT4Server extends WebSocketServer {
 
                 if (m_publisherUIDSMap.containsKey((int) topicID)) {
                     NetworkTablesEntry entry = m_publisherUIDSMap.get((int) topicID);
-                    entry.setValue(new NetworkTablesValue(dataValue, NetworkTablesValueType.determineType(dataValue)));
-                    m_publisherUIDSMap.replace((int) topicID, entry);
+                    if (dataValue != entry.getValue().get()) {
+                        NetworkTablesValue newValue = new NetworkTablesValue(dataValue, NetworkTablesValueType.determineType(dataValue));
+                        entry.setValue(newValue);
+                        m_publisherUIDSMap.replace((int) topicID, entry);
+                        entry.callListenersOfEventType(NetworkTablesEvent.kTopicUpdated, entry, newValue);
+                    }
                 }
                 // Process the decoded message
                 return new NetworkTablesMessage(topicID, stamp, dataType, dataValue);
@@ -319,11 +323,25 @@ public class NT4Server extends WebSocketServer {
             handlePublish(data);
         } else if ("unannounce".equals(type)) {
             handleUnAnnounce(data);
+        } else if ("announce".equals(type)) {
+            handleAnnounce(data);
         }
     }
 
+    private void handleAnnounce(JsonNode data) {
+        JsonNode params = data.get("params");
+        NetworkTablesEntry entry = m_entries.get(params.get("name").asText());
+        if (entry == null) return;
+
+        entry.callListenersOfEventType(NetworkTablesEvent.kTopicAnnounced, entry, entry.getValue());
+    }
+
     private void handleUnAnnounce(JsonNode data) {
-        //TODO
+        JsonNode params = data.get("params");
+        NetworkTablesEntry entry = m_entries.get(params.get("name").asText());
+        if (entry == null) return;
+
+        entry.callListenersOfEventType(NetworkTablesEvent.kTopicUnAnnounced, entry, entry.getValue());
     }
 
     private void handleSubscribe(WebSocket conn, JsonNode data) throws IOException {
@@ -344,8 +362,11 @@ public class NT4Server extends WebSocketServer {
         String topic = params.get("name").asText().substring(1);
         if (m_entries.containsKey(topic)) {
             int pubUID = params.get("pubuid").asInt();
+            NetworkTablesEntry entry = m_entries.get(topic);
             m_entries.get(topic).id = pubUID;
             m_publisherUIDSMap.put(pubUID, m_entries.get(topic));
+
+            m_entries.get(topic).callListenersOfEventType(NetworkTablesEvent.kTopicPublished, entry, entry.getValue());
         }
     }
 

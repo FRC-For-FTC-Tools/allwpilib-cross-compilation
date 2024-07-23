@@ -2,10 +2,7 @@ package org.frcforftc.networktables;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class NetworkTablesEntry {
     private final String m_topic;
@@ -21,13 +18,16 @@ public class NetworkTablesEntry {
     }
 
     public void addListener(NetworkTablesEventListener l) {
-        NetworkTablesEvent eventType = l.getEventType();
-        if (!m_listeners.containsKey(eventType)) {
-            ArrayList<NetworkTablesEventListener> events = new ArrayList<>();
-            events.add(l);
-            m_listeners.put(eventType, events);
-        } else {
-            m_listeners.get(eventType).add(l);
+        EnumSet<NetworkTablesEvent> eventTypes = l.getEventTypes();
+
+        for (NetworkTablesEvent type : eventTypes) {
+            if (!m_listeners.containsKey(type)) {
+                ArrayList<NetworkTablesEventListener> events = new ArrayList<>();
+                events.add(l);
+                m_listeners.put(type, events);
+            } else {
+                m_listeners.get(type).add(l);
+            }
         }
     }
 
@@ -47,9 +47,9 @@ public class NetworkTablesEntry {
         m_localValue = new NetworkTablesValue(val, m_localValue.getType());
     }
 
-    void callListenersOfEventType(NetworkTablesEvent eventType, NetworkTablesEntry entry, NetworkTablesValue value) {
-        for (NetworkTablesEventListener e : m_listeners.get(eventType)) {
-            e.apply(entry, value);
+    void callListenersOfEventType(NetworkTablesEvent eventTypes, NetworkTablesEntry entry, NetworkTablesValue value) {
+        for (NetworkTablesEventListener e : m_listeners.get(eventTypes)) {
+            e.apply(eventTypes);
         }
     }
 

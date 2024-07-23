@@ -1,20 +1,22 @@
 package org.frcforftc.networktables;
 
 
+import java.util.EnumSet;
+
 public class NetworkTablesEventListener {
-    private final NetworkTablesEvent m_eventType;
-    private final TopicListener m_listener;
+    private final EventListenerMethod m_listener;
+    private final EnumSet<NetworkTablesEvent> m_eventTypes;
 
-    public NetworkTablesEventListener(NetworkTablesEvent eventType, TopicListener listener) {
+    public NetworkTablesEventListener(EnumSet<NetworkTablesEvent> events, EventListenerMethod listener) {
         this.m_listener = listener;
-        this.m_eventType = eventType;
+        this.m_eventTypes = events;
     }
 
-    public void apply(NetworkTablesEntry entry, NetworkTablesValue value) {
-        m_listener.apply(entry, value);
+    public void apply(NetworkTablesEvent event) {
+        m_listener.apply(event);
     }
 
-    public NetworkTablesEvent getEventType() {
-        return m_eventType;
+    public EnumSet<NetworkTablesEvent> getEventTypes() {
+        return m_eventTypes;
     }
 }
