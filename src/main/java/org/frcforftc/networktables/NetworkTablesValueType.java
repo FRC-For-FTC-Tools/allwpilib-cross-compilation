@@ -82,7 +82,7 @@ public enum NetworkTablesValueType {
      * Constructs a NetworkTablesValueType with the specified ID and type string.
      *
      * @param id the ID of the value type
-     * @param s the string representation of the value type
+     * @param s  the string representation of the value type
      */
     NetworkTablesValueType(int id, String s) {
         this.id = id;
@@ -96,7 +96,7 @@ public enum NetworkTablesValueType {
      * @return the corresponding {@link NetworkTablesValueType}, or {@link NetworkTablesValueType#Unknown} if not found
      */
     static NetworkTablesValueType getFromString(@NonNull String s) {
-        for (var val : NetworkTablesValueType.values()) {
+        for (NetworkTablesValueType val : NetworkTablesValueType.values()) {
             if (Objects.equals(val.typeString, s)) {
                 return val;
             }
@@ -111,7 +111,7 @@ public enum NetworkTablesValueType {
      * @return the corresponding {@link NetworkTablesValueType}, or {@link NetworkTablesValueType#Unknown} if not found
      */
     static NetworkTablesValueType getFromId(int id) {
-        for (var val : NetworkTablesValueType.values()) {
+        for (NetworkTablesValueType val : NetworkTablesValueType.values()) {
             if (val.id == id) {
                 return val;
             }

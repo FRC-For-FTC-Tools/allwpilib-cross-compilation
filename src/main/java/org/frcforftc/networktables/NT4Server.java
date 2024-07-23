@@ -70,7 +70,7 @@ public class NT4Server extends WebSocketServer {
         System.out.println("CLIENT CONNECTED");
         //Test topic:
 //        createTopic("test", 12.1);
-        for (var key : m_entries.keySet()) {
+        for (String key : m_entries.keySet()) {
             NetworkTablesEntry entry = m_entries.get(key);
 
             createTopic(entry.getTopic(), entry.getValue().get());
@@ -90,7 +90,6 @@ public class NT4Server extends WebSocketServer {
         try {
 //            System.out.println("Json message received: " + message);
             JsonNode data = m_objectMapper.readTree(message).get(0);
-//            System.out.println(data);
             processMessage(conn, data);
         } catch (Exception e) {
             e.printStackTrace();
@@ -194,7 +193,8 @@ public class NT4Server extends WebSocketServer {
                 }
                 break;
             default:
-                throw new IOException("Unknown data type: " + dataType);
+//                throw new IOException("Unknown data type: " + dataType);
+                break;
         }
 
         packer.close();
@@ -203,7 +203,6 @@ public class NT4Server extends WebSocketServer {
 
 
     public NetworkTablesMessage decodeNT4Message(ByteBuffer buffer) throws IOException {
-        //TODO: i think the order its reading is wrong, should check that (value replaced by timestamp, etc)
         try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
             while (unpacker.hasNext()) {
                 // Read the array header
@@ -314,12 +313,17 @@ public class NT4Server extends WebSocketServer {
     private void processMessage(WebSocket conn, JsonNode data) throws IOException {
         if (data.get("method") == null) return;
         String type = data.get("method").asText();
-
         if ("subscribe".equals(type)) {
             handleSubscribe(conn, data);
         } else if ("publish".equals(type)) {
-            handlePublish(conn, data);
+            handlePublish(data);
+        } else if ("unannounce".equals(type)) {
+            handleUnAnnounce(data);
         }
+    }
+
+    private void handleUnAnnounce(JsonNode data) {
+        //TODO
     }
 
     private void handleSubscribe(WebSocket conn, JsonNode data) throws IOException {
@@ -335,8 +339,7 @@ public class NT4Server extends WebSocketServer {
     }
 
 
-    private void handlePublish(WebSocket conn, JsonNode data) {
-//        createTopic(data.get("params").get("name").asText(), 0);
+    private void handlePublish(JsonNode data) {
         JsonNode params = data.get("params");
         String topic = params.get("name").asText().substring(1);
         if (m_entries.containsKey(topic)) {
@@ -379,7 +382,7 @@ public class NT4Server extends WebSocketServer {
         conn.send(encodeNT4Message(System.currentTimeMillis(), id, 0, 2, client_time));
     }
 
-    public NetworkTablesEntry createTopic(String topic, Object value) {
+    public void createTopic(String topic, Object value) {
         // Create the message object
         ObjectNode message = m_objectMapper.createObjectNode();
         message.put("method", "announce");
@@ -423,7 +426,6 @@ public class NT4Server extends WebSocketServer {
         messagesArray.add(message);
         // Broadcast the message to all connected clients
         broadcast(messagesArray.toString());
-        return entry;
     }
 
     public Map<String, NetworkTablesEntry> getEntries() {

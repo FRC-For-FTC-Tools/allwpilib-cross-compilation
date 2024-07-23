@@ -21,7 +21,6 @@ public class NT4Client extends WebSocketClient {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, Integer> topicIdMap = new HashMap<>();
-    boolean sentMessage = false;
     private int nextTopicId = 1;
 
     public NT4Client(URI serverUri) {
@@ -41,6 +40,7 @@ public class NT4Client extends WebSocketClient {
     public void onMessage(String message) {
         try {
             JsonNode data = objectMapper.readTree(message);
+            System.out.println(message);
             processMessage(data);
         } catch (Exception e) {
             e.printStackTrace();
@@ -57,13 +57,6 @@ public class NT4Client extends WebSocketClient {
     }
 
     void processMessage(JsonNode node) {
-        //TODO
-        if (!sentMessage) {
-            publishEntry(new NetworkTablesEntry("/test", null, new NetworkTablesValue(1, NetworkTablesValueType.Int)));
-            sentMessage = true;
-        }
-
-//        System.out.println("message: " + node);
     }
 
     @Override

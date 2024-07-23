@@ -2,6 +2,7 @@ package org.frcforftc.networktables;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +23,9 @@ public class NetworkTablesEntry {
     public void addListener(NetworkTablesEventListener l) {
         NetworkTablesEvent eventType = l.getEventType();
         if (!m_listeners.containsKey(eventType)) {
-            m_listeners.put(eventType, List.of(l));
+            ArrayList<NetworkTablesEventListener> events = new ArrayList<>();
+            events.add(l);
+            m_listeners.put(eventType, events);
         } else {
             m_listeners.get(eventType).add(l);
         }
