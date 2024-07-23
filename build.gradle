@@ -14,29 +14,23 @@ repositories {
 }
 
 dependencies {
-    // Protobuf dependencies
     implementation 'com.fasterxml.jackson.core:jackson-core:2.13.0'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.0'
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.13.0'
-    // WebSocket library for Java (e.g., Java-WebSocket)
+
     implementation 'org.java-websocket:Java-WebSocket:1.5.2'
 
-    // Other dependencies as needed
+    implementation 'com.google.guava:guava:31.1-jre'
+    implementation 'org.msgpack:msgpack-core:0.9.3'
+
     runtimeOnly 'org.slf4j:slf4j-api:1.7.36'
     runtimeOnly 'org.apache.logging.log4j:log4j-slf4j-impl:2.20.0'
     runtimeOnly 'org.apache.logging.log4j:log4j-core:2.20.0'
-    implementation 'com.google.guava:guava:31.1-jre'
-    implementation 'org.msgpack:msgpack-core:0.9.3'
-}
-
-tasks.withType(JavaCompile) {
-    options.compilerArgs.add('-AprotoSourcePath=src/main/proto')
 }
 
 sourceSets {
     main {
         java {
-            srcDir 'build/generated/source/proto/main/java'
         }
     }
 }
