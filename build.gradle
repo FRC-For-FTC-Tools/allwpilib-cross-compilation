@@ -1,4 +1,5 @@
 plugins {
+    id 'maven-publish'
     id 'java'
     id 'com.google.protobuf' version '0.9.3'
 }
@@ -16,16 +17,16 @@ repositories {
 
 dependencies {
     // Protobuf dependencies
-    implementation 'com.fasterxml.jackson.core:jackson-core:2.15.0'
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.0'
-    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.15.0'
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.13.0'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.0'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.13.0'
     // WebSocket library for Java (e.g., Java-WebSocket)
     implementation 'org.java-websocket:Java-WebSocket:1.5.2'
 
     // Other dependencies as needed
-    implementation 'org.slf4j:slf4j-api:1.7.36'
-    implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.20.0'
-    implementation 'org.apache.logging.log4j:log4j-core:2.20.0'
+    runtimeOnly 'org.slf4j:slf4j-api:1.7.36'
+    runtimeOnly 'org.apache.logging.log4j:log4j-slf4j-impl:2.20.0'
+    runtimeOnly 'org.apache.logging.log4j:log4j-core:2.20.0'
     implementation 'com.google.guava:guava:31.1-jre'
     implementation 'org.msgpack:msgpack-core:0.9.3'
 }
@@ -38,6 +39,17 @@ sourceSets {
     main {
         java {
             srcDir 'build/generated/source/proto/main/java'
+        }
+    }
+}
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = 'org.frcforftc'
+            artifactId = 'ntcore-java'
+            version = '0.0.1'
+
+            from components.java
         }
     }
 }

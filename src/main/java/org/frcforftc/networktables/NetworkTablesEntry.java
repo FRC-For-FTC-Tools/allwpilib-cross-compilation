@@ -40,6 +40,10 @@ public class NetworkTablesEntry {
         this.m_localValue = newValue;
     }
 
+    public void update(Object val) {
+        m_localValue = new NetworkTablesValue(val, m_localValue.getType());
+    }
+
     void callListenersOfEventType(NetworkTablesEvent eventType, NetworkTablesEntry entry, NetworkTablesValue value) {
         for (NetworkTablesEventListener e : m_listeners.get(eventType)) {
             e.apply(entry, value);

@@ -36,7 +36,7 @@ public class NetworkTablesInstance {
      */
     public void start() {
         startNT4Server();
-        startNT4Client();
+      //  startNT4Client();
 
         m_instance = this;
     }
@@ -65,6 +65,8 @@ public class NetworkTablesInstance {
 
         m_client.connect();
     }
+
+
 
     /**
      * Stops the NT4 server.
