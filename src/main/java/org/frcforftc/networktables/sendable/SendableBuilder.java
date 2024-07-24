@@ -30,7 +30,7 @@ public abstract class SendableBuilder {
     /**
      * Adds a double property to be managed by this builder.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -41,7 +41,7 @@ public abstract class SendableBuilder {
     /**
      * Adds a double array property to be managed by this builder.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -52,7 +52,7 @@ public abstract class SendableBuilder {
     /**
      * Adds a boolean property to be managed by this builder.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -63,7 +63,7 @@ public abstract class SendableBuilder {
     /**
      * Adds a boolean array property to be managed by this builder.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -74,7 +74,7 @@ public abstract class SendableBuilder {
     /**
      * Adds a string property to be managed by this builder.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -85,7 +85,7 @@ public abstract class SendableBuilder {
     /**
      * Adds a string array property to be managed by this builder.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -96,7 +96,7 @@ public abstract class SendableBuilder {
     /**
      * Adds a raw property to be managed by this builder.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -107,7 +107,7 @@ public abstract class SendableBuilder {
     /**
      * Adds an integer property to be managed by this builder.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -118,7 +118,7 @@ public abstract class SendableBuilder {
     /**
      * Adds a float property to be managed by this builder.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -129,7 +129,7 @@ public abstract class SendableBuilder {
     /**
      * Adds an integer array property to be managed by this builder.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -140,7 +140,7 @@ public abstract class SendableBuilder {
     /**
      * Adds a float array property to be managed by this builder.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -151,11 +151,11 @@ public abstract class SendableBuilder {
     /**
      * Adds a property to be managed by this builder.
      *
-     * @param key the key for the property
-     * @param type the type of the property
+     * @param key    the key for the property
+     * @param type   the type of the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
-     * @param <T> the type of the property value
+     * @param <T>    the type of the property value
      */
     private <T> void addProperty(String key, NetworkTablesValueType type, Supplier<T> getter, Consumer<T> setter) {
         NetworkTablesValue value = new NetworkTablesValue(getter, type);
@@ -171,7 +171,7 @@ public abstract class SendableBuilder {
     /**
      * Publishes a double property.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -180,7 +180,7 @@ public abstract class SendableBuilder {
     /**
      * Publishes a double array property.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -189,7 +189,7 @@ public abstract class SendableBuilder {
     /**
      * Publishes a boolean property.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -198,7 +198,7 @@ public abstract class SendableBuilder {
     /**
      * Publishes a boolean array property.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -207,7 +207,7 @@ public abstract class SendableBuilder {
     /**
      * Publishes a string property.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -216,7 +216,7 @@ public abstract class SendableBuilder {
     /**
      * Publishes a string array property.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -225,7 +225,7 @@ public abstract class SendableBuilder {
     /**
      * Publishes a raw property.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -234,7 +234,7 @@ public abstract class SendableBuilder {
     /**
      * Publishes an integer property.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -243,7 +243,7 @@ public abstract class SendableBuilder {
     /**
      * Publishes a float property.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -252,7 +252,7 @@ public abstract class SendableBuilder {
     /**
      * Publishes an integer array property.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -261,7 +261,7 @@ public abstract class SendableBuilder {
     /**
      * Publishes a float array property.
      *
-     * @param key the key for the property
+     * @param key    the key for the property
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
@@ -270,7 +270,7 @@ public abstract class SendableBuilder {
     /**
      * Posts all properties to the network table using the specified announce method.
      *
-     * @param key the base key for the properties
+     * @param key            the base key for the properties
      * @param announceMethod the method used to announce the properties
      */
     public void post(String key, AnnounceMethod announceMethod) {

@@ -68,8 +68,7 @@ public class NT4Server extends WebSocketServer {
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
         m_connections.add(conn);
         System.out.println("CLIENT CONNECTED");
-        //Test topic:
-//        createTopic("test", 12.1);
+
         for (String key : m_entries.keySet()) {
             NetworkTablesEntry entry = m_entries.get(key);
 
@@ -106,7 +105,7 @@ public class NT4Server extends WebSocketServer {
             } else {
                 if (m_publisherUIDSMap.containsKey(decodedMessage.id)) {
                     NetworkTablesEntry entry = m_publisherUIDSMap.get(decodedMessage.id);
-                    entry.setValue(new NetworkTablesValue(decodedMessage.dataValue, NetworkTablesValueType.getFromId(decodedMessage.dataType)));
+                    entry.update(new NetworkTablesValue(decodedMessage.dataValue, NetworkTablesValueType.getFromId(decodedMessage.dataType)));
                     for (Set<WebSocket> subscribers : m_clientSubscriptions.values()) {
                         broadcast(encodeNT4Message(System.currentTimeMillis(), entry.id, decodedMessage.id, decodedMessage.dataType, decodedMessage.dataValue), subscribers);
                     }
@@ -298,7 +297,7 @@ public class NT4Server extends WebSocketServer {
                     NetworkTablesEntry entry = m_publisherUIDSMap.get((int) topicID);
                     if (dataValue != entry.getValue().get()) {
                         NetworkTablesValue newValue = new NetworkTablesValue(dataValue, NetworkTablesValueType.determineType(dataValue));
-                        entry.setValue(newValue);
+                        entry.update(newValue);
                         m_publisherUIDSMap.replace((int) topicID, entry);
                         entry.callListenersOfEventType(NetworkTablesEvent.kTopicUpdated, entry, newValue);
                     }
@@ -345,7 +344,7 @@ public class NT4Server extends WebSocketServer {
     }
 
     private void handleSubscribe(WebSocket conn, JsonNode data) throws IOException {
-        String topic = data.get("params").get("topics").get(0).asText().replaceAll("/", "");
+        String topic = data.get("params").get("topics").get(0).asText().substring(1);
         if (m_entries.containsKey(topic)) {
             System.out.println("SUBSCRIBED: " + topic);
             m_clientSubscriptions.computeIfAbsent(topic, k -> new CopyOnWriteArraySet<>()).add(conn);

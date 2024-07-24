@@ -14,7 +14,7 @@ public class NetworkTablesEntry {
     public NetworkTablesEntry(String topic, ObjectNode data, NetworkTablesValue localValue) {
         setJsonData(data);
         this.m_topic = topic;
-        this.m_localValue = localValue;
+        update(localValue);
     }
 
     public void addListener(NetworkTablesEventListener l) {
@@ -39,7 +39,7 @@ public class NetworkTablesEntry {
         return m_localValue;
     }
 
-    public void setValue(NetworkTablesValue newValue) {
+    public void update(NetworkTablesValue newValue) {
         this.m_localValue = newValue;
     }
 
@@ -48,6 +48,7 @@ public class NetworkTablesEntry {
     }
 
     void callListenersOfEventType(NetworkTablesEvent eventTypes, NetworkTablesEntry entry, NetworkTablesValue value) {
+        if (m_listeners.get(eventTypes) == null) return;
         for (NetworkTablesEventListener e : m_listeners.get(eventTypes)) {
             e.apply(eventTypes);
         }
