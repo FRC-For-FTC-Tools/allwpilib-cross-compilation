@@ -5,7 +5,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.java_websocket.WebSocket;
+import org.java_websocket.WebSocketImpl;
+import org.java_websocket.drafts.Draft;
+import org.java_websocket.drafts.Draft_6455;
+import org.java_websocket.exceptions.InvalidDataException;
+import org.java_websocket.extensions.IExtension;
+import org.java_websocket.framing.Framedata;
 import org.java_websocket.handshake.ClientHandshake;
+import org.java_websocket.handshake.ServerHandshakeBuilder;
+import org.java_websocket.protocols.IProtocol;
+import org.java_websocket.protocols.Protocol;
 import org.java_websocket.server.WebSocketServer;
 import org.msgpack.core.*;
 
@@ -14,7 +23,11 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,8 +43,9 @@ public class NT4Server extends WebSocketServer {
     private final Map<String, Set<WebSocket>> m_clientSubscriptions = new ConcurrentHashMap<>();
     private final ObjectMapper m_objectMapper = new ObjectMapper();
 
-    public NT4Server(InetSocketAddress address) {
-        super(address);
+    public NT4Server(InetSocketAddress address, Draft_6455 draft_protocols) {
+
+        super(address, Collections.<Draft>singletonList(draft_protocols) );
     }
 
     static byte[] serialize(final Object obj) {
@@ -46,7 +60,12 @@ public class NT4Server extends WebSocketServer {
     }
 
     public static NT4Server createInstance() {
-        m_server = new NT4Server(new InetSocketAddress("localhost", 5810));
+        ArrayList<IProtocol> protocols = new ArrayList<IProtocol>();
+        protocols.add(new Protocol("v4.1.networktables.first.wpi.edu"));
+        protocols.add(new Protocol("rtt.networktables.first.wpi.edu"));
+        Draft_6455 draft_protocols = new Draft_6455(Collections.<IExtension>emptyList(),
+                protocols);
+        m_server = new NT4Server(new InetSocketAddress("localhost", 5810), draft_protocols);
 
         if (m_shutdownHookAdded) {
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -63,18 +82,57 @@ public class NT4Server extends WebSocketServer {
 
         return m_server;
     }
+//    @Override
+//    public ServerHandshakeBuilder onWebsocketHandshakeReceivedAsServer(WebSocket conn, Draft draft, ClientHandshake request) throws InvalidDataException {
+//        System.out.println("HANDSHAKE Recieved");
+//        System.out.println(this.getDraft());
+//        ServerHandshakeBuilder builder = super.onWebsocketHandshakeReceivedAsServer(conn, draft, request);
+//        String subprotocol = request.getFieldValue("Sec-WebSocket-Protocol");
+//        for (String s : subprotocol.split(", ")) {
+//            if (s.equals("v4.1.networktables.first.wpi.edu")) {
+//                builder.put("Sec-WebSocket-Protocol", s);
+//            }
+//            if (s.equals("rtt.networktables.first.wpi.edu")) {
+//                builder.put("Sec-WebSocket-Protocol", s);
+//            }
+//
+//        }
+//        return builder;
+//    }
 
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
         m_connections.add(conn);
-        System.out.println("CLIENT CONNECTED");
+        String subprotocol = handshake.getFieldValue("Sec-WebSocket-Protocol");
+        System.out.println("CLIENT CONNECTED with "+subprotocol);
+//        handshake.iterateHttpFields().forEachRemaining((String s) -> {
+//            System.out.println(s);
+//        });
         //Test topic:
 //        createTopic("test", 12.1);
-        for (String key : m_entries.keySet()) {
-            NetworkTablesEntry entry = m_entries.get(key);
 
-            createTopic(entry.getTopic(), entry.getValue().get());
+
+        for (String s : subprotocol.split(", ")) {
+            if (s.equals("v4.1.networktables.first.wpi.edu")) {
+                conn.setAttachment(s);
+                conn.send("Using protocol: " + s);
+                for (String key : m_entries.keySet()) {
+                    NetworkTablesEntry entry = m_entries.get(key);
+
+                    createTopic(entry.getTopic(), entry.getValue().get());
+                }
+            }
+            if (s.equals("rtt.networktables.first.wpi.edu")) {
+                conn.setAttachment(s);
+                conn.send("Using protocol: " + s);
+                try {
+                    heartbeat(conn, System.currentTimeMillis());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
+
     }
 
     @Override
@@ -88,7 +146,7 @@ public class NT4Server extends WebSocketServer {
     @Override
     public void onMessage(WebSocket conn, String message) {
         try {
-//            System.out.println("Json message received: " + message);
+//           System.out.println("Json message received: " + message);
             JsonNode data = m_objectMapper.readTree(message).get(0);
             processMessage(conn, data);
         } catch (Exception e) {
@@ -99,10 +157,12 @@ public class NT4Server extends WebSocketServer {
     @Override
     public void onMessage(WebSocket conn, ByteBuffer message) {
         try {
+//            System.out.println("Raw message received: " + message);
 
             NetworkTablesMessage decodedMessage = decodeNT4Message(message);
-            if (decodedMessage.id == -1) {
-//                heartbeat(conn, (Long) decodedMessage.dataValue);
+//            System.out.println("ID: "+decodedMessage.id + " ATTACH: " +conn.getAttachment() );
+            if (decodedMessage.id == -1 && conn.getAttachment().equals("rtt.networktables.first.wpi.edu")) {
+                heartbeat(conn, (Long) decodedMessage.dataValue);
             } else {
                 if (m_publisherUIDSMap.containsKey(decodedMessage.id)) {
                     NetworkTablesEntry entry = m_publisherUIDSMap.get(decodedMessage.id);
@@ -144,7 +204,7 @@ public class NT4Server extends WebSocketServer {
                 packer.packDouble((Double) dataValue);
                 break;
             case 2: // int
-                packer.packLong((Integer) dataValue);
+                packer.packLong(((Number) dataValue).longValue());
                 break;
             case 3: // float
                 packer.packFloat((Float) dataValue);
