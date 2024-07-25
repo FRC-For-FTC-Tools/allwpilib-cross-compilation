@@ -13,7 +13,6 @@ public class DefaultSendableBuilderImpl extends SendableBuilder {
      */
     @Override
     public void publishDoubleProperty(String key, Supplier<Double> getter, Consumer<Double> setter) {
-
     }
 
     /**

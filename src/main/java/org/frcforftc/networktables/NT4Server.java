@@ -82,23 +82,6 @@ public class NT4Server extends WebSocketServer {
 
         return m_server;
     }
-//    @Override
-//    public ServerHandshakeBuilder onWebsocketHandshakeReceivedAsServer(WebSocket conn, Draft draft, ClientHandshake request) throws InvalidDataException {
-//        System.out.println("HANDSHAKE Recieved");
-//        System.out.println(this.getDraft());
-//        ServerHandshakeBuilder builder = super.onWebsocketHandshakeReceivedAsServer(conn, draft, request);
-//        String subprotocol = request.getFieldValue("Sec-WebSocket-Protocol");
-//        for (String s : subprotocol.split(", ")) {
-//            if (s.equals("v4.1.networktables.first.wpi.edu")) {
-//                builder.put("Sec-WebSocket-Protocol", s);
-//            }
-//            if (s.equals("rtt.networktables.first.wpi.edu")) {
-//                builder.put("Sec-WebSocket-Protocol", s);
-//            }
-//
-//        }
-//        return builder;
-//    }
 
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
@@ -132,7 +115,6 @@ public class NT4Server extends WebSocketServer {
                 }
             }
         }
-
     }
 
     @Override
@@ -146,7 +128,7 @@ public class NT4Server extends WebSocketServer {
     @Override
     public void onMessage(WebSocket conn, String message) {
         try {
-//           System.out.println("Json message received: " + message);
+//            System.out.println("Json message received: " + message);
             JsonNode data = m_objectMapper.readTree(message).get(0);
             processMessage(conn, data);
         } catch (Exception e) {
@@ -157,7 +139,6 @@ public class NT4Server extends WebSocketServer {
     @Override
     public void onMessage(WebSocket conn, ByteBuffer message) {
         try {
-//            System.out.println("Raw message received: " + message);
 
             NetworkTablesMessage decodedMessage = decodeNT4Message(message);
 //            System.out.println("ID: "+decodedMessage.id + " ATTACH: " +conn.getAttachment() );
