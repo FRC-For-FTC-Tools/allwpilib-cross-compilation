@@ -147,7 +147,7 @@ public class NT4Server extends WebSocketServer {
             } else {
                 if (m_publisherUIDSMap.containsKey(decodedMessage.id)) {
                     NetworkTablesEntry entry = m_publisherUIDSMap.get(decodedMessage.id);
-                    entry.setValue(new NetworkTablesValue(decodedMessage.dataValue, NetworkTablesValueType.getFromId(decodedMessage.dataType)));
+                    entry.update(new NetworkTablesValue(decodedMessage.dataValue, NetworkTablesValueType.getFromId(decodedMessage.dataType)));
                     for (Set<WebSocket> subscribers : m_clientSubscriptions.values()) {
                         broadcast(encodeNT4Message(System.currentTimeMillis(), entry.id, decodedMessage.id, decodedMessage.dataType, decodedMessage.dataValue), subscribers);
                     }
@@ -339,7 +339,7 @@ public class NT4Server extends WebSocketServer {
                     NetworkTablesEntry entry = m_publisherUIDSMap.get((int) topicID);
                     if (dataValue != entry.getValue().get()) {
                         NetworkTablesValue newValue = new NetworkTablesValue(dataValue, NetworkTablesValueType.determineType(dataValue));
-                        entry.setValue(newValue);
+                        entry.update(newValue);
                         m_publisherUIDSMap.replace((int) topicID, entry);
                         entry.callListenersOfEventType(NetworkTablesEvent.kTopicUpdated, entry, newValue);
                     }
