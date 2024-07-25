@@ -1,22 +1,32 @@
 package org.frcforftc.networktables;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
 import java.util.*;
 
+/**
+ * Represents an entry in the NetworkTables with a specific topic, value, and associated listeners.
+ */
 public class NetworkTablesEntry {
     private final String m_topic;
     private final Map<NetworkTablesEvent, List<NetworkTablesEventListener>> m_listeners = new HashMap<>();
     public int id = 0;
     private NetworkTablesValue m_localValue;
-    private ObjectNode m_jsonData;
 
-    public NetworkTablesEntry(String topic, ObjectNode data, NetworkTablesValue localValue) {
-        setJsonData(data);
+    /**
+     * Constructs a NetworkTablesEntry with the specified topic, and initial value.
+     *
+     * @param topic      the topic name of the entry
+     * @param localValue the initial value of the entry
+     */
+    public NetworkTablesEntry(String topic, NetworkTablesValue localValue) {
         this.m_topic = topic;
         update(localValue);
     }
 
+    /**
+     * Adds a listener for specific events to this entry.
+     *
+     * @param l the event listener to be added
+     */
     public void addListener(NetworkTablesEventListener l) {
         EnumSet<NetworkTablesEvent> eventTypes = l.getEventTypes();
 
@@ -31,22 +41,41 @@ public class NetworkTablesEntry {
         }
     }
 
-    public void setJsonData(ObjectNode data) {
-        this.m_jsonData = data;
-    }
 
+    /**
+     * Retrieves the current value of this entry.
+     *
+     * @return the current NetworkTablesValue of the entry
+     */
     public NetworkTablesValue getValue() {
         return m_localValue;
     }
 
+    /**
+     * Updates the value of this entry with a new NetworkTablesValue.
+     *
+     * @param newValue the new NetworkTablesValue to be set
+     */
     public void update(NetworkTablesValue newValue) {
         this.m_localValue = newValue;
     }
 
+    /**
+     * Updates the value of this entry with a new value object, creating a NetworkTablesValue with the current type.
+     *
+     * @param val the new value to be set
+     */
     public void update(Object val) {
         m_localValue = new NetworkTablesValue(val, m_localValue.getType());
     }
 
+    /**
+     * Calls the listeners associated with the specified event type.
+     *
+     * @param eventTypes the event type for which listeners are to be called
+     * @param entry      the NetworkTablesEntry that triggered the event
+     * @param value      the new value associated with the event
+     */
     void callListenersOfEventType(NetworkTablesEvent eventTypes, NetworkTablesEntry entry, NetworkTablesValue value) {
         if (m_listeners.get(eventTypes) == null) return;
         for (NetworkTablesEventListener e : m_listeners.get(eventTypes)) {
@@ -54,6 +83,11 @@ public class NetworkTablesEntry {
         }
     }
 
+    /**
+     * Retrieves the topic of this entry.
+     *
+     * @return the topic name of the entry
+     */
     public String getTopic() {
         return m_topic;
     }

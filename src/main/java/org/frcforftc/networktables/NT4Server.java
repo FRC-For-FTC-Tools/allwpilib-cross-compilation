@@ -5,14 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.java_websocket.WebSocket;
-import org.java_websocket.WebSocketImpl;
-import org.java_websocket.drafts.Draft;
 import org.java_websocket.drafts.Draft_6455;
-import org.java_websocket.exceptions.InvalidDataException;
-import org.java_websocket.extensions.IExtension;
-import org.java_websocket.framing.Framedata;
 import org.java_websocket.handshake.ClientHandshake;
-import org.java_websocket.handshake.ServerHandshakeBuilder;
 import org.java_websocket.protocols.IProtocol;
 import org.java_websocket.protocols.Protocol;
 import org.java_websocket.server.WebSocketServer;
@@ -20,51 +14,73 @@ import org.msgpack.core.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
+/**
+ * NT4Server is a WebSocket server that handles NetworkTables communication
+ * using the NT4 protocol. It supports client connections, message processing,
+ * and broadcasting updates to all connected clients.
+ */
 public class NT4Server extends WebSocketServer {
-    static final Map<Integer, NetworkTablesEntry> m_publisherUIDSMap = new HashMap<>();
+    /**
+     * Map of publisher unique IDs to NetworkTablesEntry objects
+     */
+    static final Map<Long, NetworkTablesEntry> m_publisherUIDSMap = new ConcurrentHashMap<>();
 
-    static final Map<String, NetworkTablesEntry> m_entries = new HashMap<>();
+    /**
+     * Map of topic names to NetworkTablesEntry objects
+     */
+    static final Map<String, NetworkTablesEntry> m_entries = new ConcurrentHashMap<>();
+
+    /**
+     * Singleton instance of NT4Server
+     */
     private static NT4Server m_server = null;
+    /**
+     * Indicates if the shutdown hook has been added
+     */
     private static boolean m_shutdownHookAdded = false;
+    /**
+     * Set of connected WebSocket clients
+     */
     private final Set<WebSocket> m_connections = new CopyOnWriteArraySet<>();
+    /**
+     * Map of topics to client WebSocket subscriptions
+     */
     private final Map<String, Set<WebSocket>> m_clientSubscriptions = new ConcurrentHashMap<>();
+    /**
+     * Jackson ObjectMapper for JSON processing
+     */
     private final ObjectMapper m_objectMapper = new ObjectMapper();
 
+    /**
+     * Constructs an NT4Server instance with the specified address and protocol.
+     *
+     * @param address         the address to bind the server to
+     * @param draft_protocols the WebSocket draft protocols to use
+     */
     public NT4Server(InetSocketAddress address, Draft_6455 draft_protocols) {
 
-        super(address, Collections.<Draft>singletonList(draft_protocols) );
+        super(address, Collections.singletonList(draft_protocols));
     }
 
-    static byte[] serialize(final Object obj) {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        try (ObjectOutputStream out = new ObjectOutputStream(bos)) {
-            out.writeObject(obj);
-            out.flush();
-            return bos.toByteArray();
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
+    /**
+     * Creates and starts an instance of NT4Server.
+     *
+     * @return the created NT4Server instance
+     */
     public static NT4Server createInstance() {
         ArrayList<IProtocol> protocols = new ArrayList<IProtocol>();
         protocols.add(new Protocol("v4.1.networktables.first.wpi.edu"));
         protocols.add(new Protocol("rtt.networktables.first.wpi.edu"));
-        Draft_6455 draft_protocols = new Draft_6455(Collections.<IExtension>emptyList(),
-                protocols);
+        Draft_6455 draft_protocols = new Draft_6455(Collections.emptyList(), protocols);
         m_server = new NT4Server(new InetSocketAddress("localhost", 5810), draft_protocols);
 
         if (m_shutdownHookAdded) {
@@ -87,13 +103,7 @@ public class NT4Server extends WebSocketServer {
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
         m_connections.add(conn);
         String subprotocol = handshake.getFieldValue("Sec-WebSocket-Protocol");
-        System.out.println("CLIENT CONNECTED with "+subprotocol);
-//        handshake.iterateHttpFields().forEachRemaining((String s) -> {
-//            System.out.println(s);
-//        });
-        //Test topic:
-//        createTopic("test", 12.1);
-
+        System.out.println("CLIENT CONNECTED with " + subprotocol);
 
         for (String s : subprotocol.split(", ")) {
             if (s.equals("v4.1.networktables.first.wpi.edu")) {
@@ -115,6 +125,10 @@ public class NT4Server extends WebSocketServer {
                 }
             }
         }
+
+        for (NetworkTablesEntry entry : m_entries.values()) {
+            entry.callListenersOfEventType(NetworkTablesEvent.kConnected, entry, entry.getValue());
+        }
     }
 
     @Override
@@ -128,7 +142,6 @@ public class NT4Server extends WebSocketServer {
     @Override
     public void onMessage(WebSocket conn, String message) {
         try {
-//            System.out.println("Json message received: " + message);
             JsonNode data = m_objectMapper.readTree(message).get(0);
             processMessage(conn, data);
         } catch (Exception e) {
@@ -168,6 +181,17 @@ public class NT4Server extends WebSocketServer {
         System.out.println("Server started successfully!");
     }
 
+    /**
+     * Encodes a NetworkTables message into a ByteBuffer.
+     *
+     * @param timestamp the message timestamp
+     * @param topicId   the topic ID
+     * @param pubUID    the publisher unique ID
+     * @param dataType  the data type
+     * @param dataValue the data value
+     * @return the encoded ByteBuffer
+     * @throws IOException if encoding fails
+     */
     public ByteBuffer encodeNT4Message(long timestamp, long topicId, long pubUID, int dataType, Object dataValue) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         MessagePacker packer = MessagePack.newDefaultPacker(out);
@@ -177,56 +201,58 @@ public class NT4Server extends WebSocketServer {
         packer.packLong(timestamp);
         packer.packInt(dataType);
 
-        switch (dataType) {
-            case 0: // boolean
+        NetworkTablesValueType dataTypeAsEnum = NetworkTablesValueType.getFromId(dataType);
+
+        switch (dataTypeAsEnum) {
+            case Boolean: // boolean
                 packer.packBoolean((Boolean) dataValue);
                 break;
-            case 1: // double
+            case Double: // double
                 packer.packDouble((Double) dataValue);
                 break;
-            case 2: // int
+            case Int: // int
                 packer.packLong(((Number) dataValue).longValue());
                 break;
-            case 3: // float
+            case Float: // float
                 packer.packFloat((Float) dataValue);
                 break;
-            case 4: // string
+            case String: // string
                 packer.packString((String) dataValue);
                 break;
-            case 5: // binary
+            case Raw: // binary
                 byte[] binaryData = (byte[]) dataValue;
                 packer.packBinaryHeader(binaryData.length);
                 packer.writePayload(binaryData);
                 break;
-            case 16: // boolean array
+            case BooleanArray: // boolean array
                 boolean[] boolArray = (boolean[]) dataValue;
                 packer.packArrayHeader(boolArray.length);
                 for (boolean b : boolArray) {
                     packer.packBoolean(b);
                 }
                 break;
-            case 17: // double array
+            case DoubleArray: // double array
                 double[] doubleArray = (double[]) dataValue;
                 packer.packArrayHeader(doubleArray.length);
                 for (double d : doubleArray) {
                     packer.packDouble(d);
                 }
                 break;
-            case 18: // int array
+            case IntArray: // int array
                 int[] intArray = (int[]) dataValue;
                 packer.packArrayHeader(intArray.length);
                 for (int i : intArray) {
                     packer.packInt(i);
                 }
                 break;
-            case 19: // float array
+            case FloatArray: // float array
                 float[] floatArray = (float[]) dataValue;
                 packer.packArrayHeader(floatArray.length);
                 for (float f : floatArray) {
                     packer.packFloat(f);
                 }
                 break;
-            case 20: // string array
+            case StringArray: // string array
                 String[] stringArray = (String[]) dataValue;
                 packer.packArrayHeader(stringArray.length);
                 for (String s : stringArray) {
@@ -234,7 +260,6 @@ public class NT4Server extends WebSocketServer {
                 }
                 break;
             default:
-//                throw new IOException("Unknown data type: " + dataType);
                 break;
         }
 
@@ -242,7 +267,13 @@ public class NT4Server extends WebSocketServer {
         return ByteBuffer.wrap(out.toByteArray());
     }
 
-
+    /**
+     * Decodes a NetworkTables message from a ByteBuffer.
+     *
+     * @param buffer the ByteBuffer to decode
+     * @return the decoded NetworkTablesMessage
+     * @throws IOException if decoding fails
+     */
     public NetworkTablesMessage decodeNT4Message(ByteBuffer buffer) throws IOException {
         try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
             while (unpacker.hasNext()) {
@@ -262,28 +293,30 @@ public class NT4Server extends WebSocketServer {
 
                 // Read the data type
                 int dataType = unpacker.unpackInt();
+
+                NetworkTablesValueType dataTypeAsEnum = NetworkTablesValueType.getFromId(dataType);
 //                System.out.println("Data Type: " + dataType);
 
                 // Read the data value based on type
                 Object dataValue = null;
                 try {
-                    switch (dataType) {
-                        case 0: // boolean
+                    switch (dataTypeAsEnum) {
+                        case Boolean: // boolean
                             dataValue = unpacker.unpackBoolean();
                             break;
-                        case 1: // double
+                        case Double: // double
                             dataValue = unpacker.unpackDouble();
                             break;
-                        case 2: // int
+                        case Int: // int
                             dataValue = unpacker.unpackLong();
                             break;
-                        case 3: // float
+                        case Float: // float
                             dataValue = unpacker.unpackFloat();
                             break;
-                        case 4: // string
+                        case String: // string
                             dataValue = unpacker.unpackString();
                             break;
-                        case 16: // boolean array
+                        case BooleanArray: // boolean array
                             int boolArraySize = unpacker.unpackArrayHeader();
                             boolean[] boolArray = new boolean[boolArraySize];
                             for (int i = 0; i < boolArraySize; i++) {
@@ -291,7 +324,7 @@ public class NT4Server extends WebSocketServer {
                             }
                             dataValue = boolArray;
                             break;
-                        case 17: // double array
+                        case DoubleArray: // double array
                             int doubleArraySize = unpacker.unpackArrayHeader();
                             double[] doubleArray = new double[doubleArraySize];
                             for (int i = 0; i < doubleArraySize; i++) {
@@ -299,7 +332,7 @@ public class NT4Server extends WebSocketServer {
                             }
                             dataValue = doubleArray;
                             break;
-                        case 18: // int array
+                        case IntArray: // int array
                             int intArraySize = unpacker.unpackArrayHeader();
                             int[] intArray = new int[intArraySize];
                             for (int i = 0; i < intArraySize; i++) {
@@ -311,7 +344,7 @@ public class NT4Server extends WebSocketServer {
                             }
                             dataValue = intArray;
                             break;
-                        case 19: // float array
+                        case FloatArray: // float array
                             int floatArraySize = unpacker.unpackArrayHeader();
                             float[] floatArray = new float[floatArraySize];
                             for (int i = 0; i < floatArraySize; i++) {
@@ -319,7 +352,7 @@ public class NT4Server extends WebSocketServer {
                             }
                             dataValue = floatArray;
                             break;
-                        case 20: // string array
+                        case StringArray: // string array
                             int stringArraySize = unpacker.unpackArrayHeader();
                             String[] stringArray = new String[stringArraySize];
                             for (int i = 0; i < stringArraySize; i++) {
@@ -340,7 +373,7 @@ public class NT4Server extends WebSocketServer {
                     if (dataValue != entry.getValue().get()) {
                         NetworkTablesValue newValue = new NetworkTablesValue(dataValue, NetworkTablesValueType.determineType(dataValue));
                         entry.update(newValue);
-                        m_publisherUIDSMap.replace((int) topicID, entry);
+                        m_publisherUIDSMap.replace(topicID, entry);
                         entry.callListenersOfEventType(NetworkTablesEvent.kTopicUpdated, entry, newValue);
                     }
                 }
@@ -355,6 +388,12 @@ public class NT4Server extends WebSocketServer {
         return new NetworkTablesMessage(0, 0, 0, 0);
     }
 
+    /**
+     * Processes a JSON message and updates the relevant NetworkTables entries.
+     *
+     * @param conn the WebSocket connection
+     * @param data the JSON data
+     */
     private void processMessage(WebSocket conn, JsonNode data) throws IOException {
         if (data.get("method") == null) return;
         String type = data.get("method").asText();
@@ -386,7 +425,7 @@ public class NT4Server extends WebSocketServer {
     }
 
     private void handleSubscribe(WebSocket conn, JsonNode data) throws IOException {
-        String topic = data.get("params").get("topics").get(0).asText().replaceAll("/", "");
+        String topic = data.get("params").get("topics").get(0).asText().substring(1); // Removes the root "/" from the topic path
         if (m_entries.containsKey(topic)) {
             System.out.println("SUBSCRIBED: " + topic);
             m_clientSubscriptions.computeIfAbsent(topic, k -> new CopyOnWriteArraySet<>()).add(conn);
@@ -405,20 +444,27 @@ public class NT4Server extends WebSocketServer {
             int pubUID = params.get("pubuid").asInt();
             NetworkTablesEntry entry = m_entries.get(topic);
             m_entries.get(topic).id = pubUID;
-            m_publisherUIDSMap.put(pubUID, m_entries.get(topic));
+            m_publisherUIDSMap.put((long) pubUID, m_entries.get(topic));
 
             m_entries.get(topic).callListenersOfEventType(NetworkTablesEvent.kTopicPublished, entry, entry.getValue());
         }
     }
 
-    private void heartbeat(WebSocket conn, long client_time) throws IOException {
+    /**
+     * Sends a heartbeat message to a client.
+     *
+     * @param conn       the WebSocket connection
+     * @param clientTime the current timestamp
+     * @throws IOException if sending fails
+     */
+    private void heartbeat(WebSocket conn, long clientTime) throws IOException {
         ObjectNode message = m_objectMapper.createObjectNode();
         message.put("method", "announce");
 
         // Create params object
         ObjectNode params = m_objectMapper.createObjectNode();
         params.put("name", "/stamp");
-        String typeString = NetworkTablesValueType.determineType((int) client_time).typeString;
+        String typeString = NetworkTablesValueType.determineType((int) clientTime).typeString;
 
         //  NetworkTablesEntry entry = new NetworkTablesEntry("stamp", message, new NetworkTablesValue(0, typeString));
 
@@ -426,7 +472,7 @@ public class NT4Server extends WebSocketServer {
 
         params.put("id", id); // Set a unique topic ID
 
-        params.put("value", client_time);
+        params.put("value", clientTime);
         params.put("type", typeString);
         params.put("pubuid", id); // Use the publisher ID
 
@@ -441,9 +487,15 @@ public class NT4Server extends WebSocketServer {
         ArrayNode messagesArray = m_objectMapper.createArrayNode();
         messagesArray.add(message);
         // Broadcast the message to all connected clients
-        conn.send(encodeNT4Message(System.currentTimeMillis(), id, 0, 2, client_time));
+        conn.send(encodeNT4Message(System.currentTimeMillis(), id, 0, 2, clientTime));
     }
 
+    /**
+     * Creates a NetworkTables topic and broadcasts its creation to all clients.
+     *
+     * @param topic the topic name
+     * @param value the initial value of the topic
+     */
     public void createTopic(String topic, Object value) {
         // Create the message object
         ObjectNode message = m_objectMapper.createObjectNode();
@@ -454,7 +506,7 @@ public class NT4Server extends WebSocketServer {
         params.put("name", "/" + topic);
         String typeString = NetworkTablesValueType.determineType(value).typeString;
 
-        NetworkTablesEntry entry = new NetworkTablesEntry(topic, message, new NetworkTablesValue(value, typeString));
+        NetworkTablesEntry entry = new NetworkTablesEntry(topic, new NetworkTablesValue(value, typeString));
 
         int id;
         if (m_entries.containsKey(topic)) {
@@ -463,7 +515,8 @@ public class NT4Server extends WebSocketServer {
 
             if (value != entry.getValue().get()) {
 //                System.out.println("Value updated from: " + entry.getValue().get().toString() + " to: " + value.toString());
-                m_entries.get(topic).update(value);
+                if (NetworkTablesValueType.determineType(value) != NetworkTablesValueType.Unknown) // Prevents issue that is caused when client gets disconnected while server is running
+                    m_entries.get(topic).update(value);
             }
 
         } else {
