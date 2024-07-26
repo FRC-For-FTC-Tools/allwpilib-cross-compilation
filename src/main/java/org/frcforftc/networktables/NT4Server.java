@@ -112,7 +112,7 @@ public class NT4Server extends WebSocketServer {
                 for (String key : m_entries.keySet()) {
                     NetworkTablesEntry entry = m_entries.get(key);
 
-                    createTopic(entry.getTopic(), entry.getValue().get());
+                    putTopic(entry.getTopic(), entry.getValue().get());
                 }
             }
             if (s.equals("rtt.networktables.first.wpi.edu")) {
@@ -162,7 +162,7 @@ public class NT4Server extends WebSocketServer {
                     NetworkTablesEntry entry = m_publisherUIDSMap.get(decodedMessage.id);
                     entry.update(new NetworkTablesValue(decodedMessage.dataValue, NetworkTablesValueType.getFromId(decodedMessage.dataType)));
                     for (Set<WebSocket> subscribers : m_clientSubscriptions.values()) {
-                        broadcast(encodeNT4Message(System.currentTimeMillis(), entry.id, decodedMessage.id, decodedMessage.dataType, decodedMessage.dataValue), subscribers);
+                        broadcast(encodeNT4Message(System.currentTimeMillis(), entry.getId(), decodedMessage.id, decodedMessage.dataType, decodedMessage.dataValue), subscribers);
                     }
                 }
             }
@@ -371,6 +371,7 @@ public class NT4Server extends WebSocketServer {
                     NetworkTablesEntry entry = m_publisherUIDSMap.get(topicID);
                     if (dataValue != entry.getValue().get()) {
                         NetworkTablesValue newValue = new NetworkTablesValue(dataValue, NetworkTablesValueType.determineType(dataValue));
+
                         entry.update(newValue);
                         m_publisherUIDSMap.replace(topicID, entry);
                         entry.callListenersOfEventType(NetworkTablesEvent.kTopicUpdated, entry, newValue);
@@ -428,7 +429,7 @@ public class NT4Server extends WebSocketServer {
         if (m_entries.containsKey(topic)) {
             System.out.println("SUBSCRIBED: " + topic);
             m_clientSubscriptions.computeIfAbsent(topic, k -> new CopyOnWriteArraySet<>()).add(conn);
-            conn.send(encodeNT4Message(System.currentTimeMillis(), m_entries.get(topic).id, 0, NetworkTablesValueType.getFromString(m_entries.get(topic).getValue().getType().typeString).id, m_entries.get(topic).getValue().getAs()));
+            conn.send(encodeNT4Message(System.currentTimeMillis(), m_entries.get(topic).getId(), 0, NetworkTablesValueType.getFromString(m_entries.get(topic).getValue().getType()).id, m_entries.get(topic).getValue().getAs()));
         } else {
             System.out.println("FAILED TO SUBSCRIBE TO " + topic + " AVAILABLE TOPICS ARE:");
             System.out.println(m_entries.keySet());
@@ -442,7 +443,7 @@ public class NT4Server extends WebSocketServer {
         if (m_entries.containsKey(topic)) {
             int pubUID = params.get("pubuid").asInt();
             NetworkTablesEntry entry = m_entries.get(topic);
-            m_entries.get(topic).id = pubUID;
+            m_entries.get(topic).setId(pubUID);
             m_publisherUIDSMap.put((long) pubUID, m_entries.get(topic));
 
             m_entries.get(topic).callListenersOfEventType(NetworkTablesEvent.kTopicPublished, entry, entry.getValue());
@@ -495,7 +496,7 @@ public class NT4Server extends WebSocketServer {
      * @param topic the topic name
      * @param value the initial value of the topic
      */
-    public NetworkTablesEntry createTopic(String topic, Object value) {
+    public NetworkTablesEntry putTopic(String topic, Object value) {
         // Create the message object
         ObjectNode message = m_objectMapper.createObjectNode();
         message.put("method", "announce");
@@ -509,18 +510,17 @@ public class NT4Server extends WebSocketServer {
 
         int id;
         if (m_entries.containsKey(topic)) {
-            id = m_entries.get(topic).id;
+            id = m_entries.get(topic).getId();
             entry = m_entries.get(topic);
 
             if (value != entry.getValue().get()) {
 //                System.out.println("Value updated from: " + entry.getValue().get().toString() + " to: " + value.toString());
-                if (NetworkTablesValueType.determineType(value) != NetworkTablesValueType.Unknown) // Prevents issue that is caused when client gets disconnected while server is running
-                    m_entries.get(topic).update(value);
+                m_entries.get(topic).update(value);
             }
 
         } else {
             id = m_entries.size() + 1;
-            entry.id = m_entries.size() + 1;
+            entry.setId(m_entries.size() + 1);
             m_entries.put(topic, entry);
         }
         params.put("id", id); // Set a unique topic ID
@@ -543,7 +543,7 @@ public class NT4Server extends WebSocketServer {
         return entry;
     }
 
-    public NetworkTablesEntry createTopic(String topic, NetworkTablesValue value) {
+    public NetworkTablesEntry putTopic(String topic, NetworkTablesValue value) {
         // Create the message object
         ObjectNode message = m_objectMapper.createObjectNode();
         message.put("method", "announce");
@@ -551,24 +551,23 @@ public class NT4Server extends WebSocketServer {
         // Create params object
         ObjectNode params = m_objectMapper.createObjectNode();
         params.put("name", "/" + topic);
-        String typeString = value.getType().typeString;
+        String typeString = value.getType();
 
         NetworkTablesEntry entry = new NetworkTablesEntry(topic, value);
 
         int id;
         if (m_entries.containsKey(topic)) {
-            id = m_entries.get(topic).id;
+            id = m_entries.get(topic).getId();
             entry = m_entries.get(topic);
 
             if (value != entry.getValue().get()) {
-//                System.out.println("Value updated from: " + entry.getValue().get().toString() + " to: " + value.toString());
                 if (NetworkTablesValueType.determineType(value) != NetworkTablesValueType.Unknown) // Prevents issue that is caused when client gets disconnected while server is running
                     m_entries.get(topic).update(value);
             }
 
         } else {
             id = m_entries.size() + 1;
-            entry.id = m_entries.size() + 1;
+            entry.setId(m_entries.size() + 1);
             m_entries.put(topic, entry);
         }
         params.put("id", id); // Set a unique topic ID

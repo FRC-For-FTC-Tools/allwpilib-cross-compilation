@@ -6,6 +6,7 @@ import org.frcforftc.networktables.NetworkTablesValue;
 import org.frcforftc.networktables.NetworkTablesValueType;
 
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -161,8 +162,8 @@ public abstract class SendableBuilder {
         NetworkTablesValue value = new NetworkTablesValue(getter, type);
 
         NetworkTablesValue containedValue = properties.get(key);
-        if (containedValue != null && containedValue.getType() != type) {
-            throw new RuntimeException(String.format("Non matching types for topic %s (%s and %s)", key, type.typeString, containedValue.getType().typeString));
+        if (containedValue != null && !Objects.equals(containedValue.getType(), type.typeString)) {
+            throw new RuntimeException(String.format("Non matching types for topic %s (%s and %s)", key, type.typeString, containedValue.getType()));
         }
 
         properties.put(key, value);
@@ -277,7 +278,13 @@ public abstract class SendableBuilder {
         for (String topic : properties.keySet()) {
             NetworkTablesValue value = properties.get(topic);
 
+            switch (value.getType()) {
+                //TODO: apply the publish method according to the right type
+            }
+
             announceMethod.apply(key + "/" + topic, value.get());
         }
+
+        announceMethod.apply(key + "/" + ".type", m_type);
     }
 }

@@ -84,8 +84,8 @@ public class NT4Client extends WebSocketClient {
         message.put("method", "publish");
         ObjectNode params = objectMapper.createObjectNode();
         params.put("name", entry.getTopic());
-        params.put("pubuid", entry.id);
-        params.put("type", entry.getValue().getType().typeString);
+        params.put("pubuid", entry.getId());
+        params.put("type", entry.getValue().getType());
         ObjectNode properties = objectMapper.createObjectNode();
         // Add any properties here if needed
         params.set("properties", properties);

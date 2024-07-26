@@ -8,7 +8,7 @@ import java.util.function.Supplier;
  */
 public class NetworkTablesValue {
     private final Supplier<?> m_value;
-    private final NetworkTablesValueType m_type;
+    private final String m_type;
 
     /**
      * Constructs a NetworkTablesValue with a specific value and type.
@@ -30,6 +30,10 @@ public class NetworkTablesValue {
         this(() -> value, NetworkTablesValueType.getFromString(type));
     }
 
+    public NetworkTablesValue(Object value) {
+        this(value, NetworkTablesValueType.determineType(value));
+    }
+
     /**
      * Constructs a NetworkTablesValue with a supplier for the value and a type string.
      *
@@ -48,7 +52,7 @@ public class NetworkTablesValue {
      */
     public NetworkTablesValue(Supplier<?> getter, NetworkTablesValueType type) {
         this.m_value = getter;
-        this.m_type = type;
+        this.m_type = type.typeString;
     }
 
     /**
@@ -85,7 +89,7 @@ public class NetworkTablesValue {
      *
      * @return the type of the value
      */
-    public NetworkTablesValueType getType() {
+    public String getType() {
         return m_type;
     }
 }

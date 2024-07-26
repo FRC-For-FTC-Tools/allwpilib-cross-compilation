@@ -127,29 +127,38 @@ public enum NetworkTablesValueType {
      */
     static NetworkTablesValueType determineType(Object value) {
         if (value instanceof Integer) {
-            return Int;
+            return NetworkTablesValueType.Int;
         } else if (value instanceof Double) {
-            return Double;
+            return NetworkTablesValueType.Double;
         } else if (value instanceof Float) {
-            return Float;
+            return NetworkTablesValueType.Float;
         } else if (value instanceof String) {
-            return String;
+            return NetworkTablesValueType.String;
         } else if (value instanceof Boolean) {
-            return Boolean;
+            return NetworkTablesValueType.Boolean;
         } else if (value instanceof byte[]) { // Raw data is usually represented as a byte array
-            return Raw;
+            return NetworkTablesValueType.Raw;
         } else if (value instanceof boolean[]) {
-            return BooleanArray;
+            return NetworkTablesValueType.BooleanArray;
         } else if (value instanceof double[]) {
-            return DoubleArray;
+            return NetworkTablesValueType.DoubleArray;
         } else if (value instanceof int[]) {
-            return IntArray;
+            return NetworkTablesValueType.IntArray;
         } else if (value instanceof float[]) {
-            return FloatArray;
+            return NetworkTablesValueType.FloatArray;
+        } else if (value instanceof Integer[]) {
+            return NetworkTablesValueType.IntArray;
+        } else if (value instanceof Double[]) {
+            return NetworkTablesValueType.DoubleArray;
+        } else if (value instanceof Float[]) {
+            return NetworkTablesValueType.FloatArray;
+        } else if (value instanceof Boolean[]) {
+            return NetworkTablesValueType.BooleanArray;
         } else if (value instanceof String[]) {
-            return StringArray;
+            return NetworkTablesValueType.StringArray;
         } else {
-            return Unknown;
+            return NetworkTablesValueType.Unknown;
         }
     }
+
 }

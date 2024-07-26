@@ -1,14 +1,16 @@
 package org.frcforftc.networktables;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Represents an entry in the NetworkTables with a specific topic, value, and associated listeners.
  */
 public class NetworkTablesEntry {
     private final String m_topic;
-    private final Map<NetworkTablesEvent, List<NetworkTablesEventListener>> m_listeners = new HashMap<>();
-    public int id = 0;
+    private final Map<NetworkTablesEvent, List<NetworkTablesEventListener>> m_listeners = new ConcurrentHashMap<>();
+    private final Map<String, NetworkTablesEntry> m_properties = new ConcurrentHashMap<>();
+    private int m_id = -1;
     private NetworkTablesValue m_localValue;
 
     /**
@@ -20,6 +22,32 @@ public class NetworkTablesEntry {
     public NetworkTablesEntry(String topic, NetworkTablesValue localValue) {
         this.m_topic = topic;
         update(localValue);
+    }
+
+    public NetworkTablesEntry(String topic, Object value) {
+        this.m_topic = topic;
+        if (!(value instanceof NetworkTablesValue)) {
+            update(new NetworkTablesValue(value));
+        } else {
+            update(value);
+        }
+    }
+
+    public void addProperty(NetworkTablesEntry value) {
+        m_properties.put(value.getTopic(), value);
+    }
+
+    public void addProperty(String key, Object value) {
+        NetworkTablesEntry createdEntry = new NetworkTablesEntry(key, new NetworkTablesValue(value, NetworkTablesValueType.determineType(value)));
+        addProperty(createdEntry);
+    }
+
+    public void removeProperty(String key) {
+        m_properties.remove(key);
+    }
+
+    public NetworkTablesEntry[] getProperties() {
+        return m_properties.values().toArray(new NetworkTablesEntry[0]);
     }
 
     /**
@@ -41,7 +69,6 @@ public class NetworkTablesEntry {
         }
     }
 
-
     /**
      * Retrieves the current value of this entry.
      *
@@ -57,7 +84,8 @@ public class NetworkTablesEntry {
      * @param newValue the new NetworkTablesValue to be set
      */
     public void update(NetworkTablesValue newValue) {
-        this.m_localValue = newValue;
+        if (!Objects.equals(newValue.getType(), NetworkTablesValueType.Unknown.typeString) || NetworkTablesValueType.getFromString(newValue.getType()) == NetworkTablesValueType.Unknown) // Doesnt actually fix the reconnection issue
+            this.m_localValue = newValue;
     }
 
     /**
@@ -66,7 +94,7 @@ public class NetworkTablesEntry {
      * @param val the new value to be set
      */
     public void update(Object val) {
-        m_localValue = new NetworkTablesValue(val, m_localValue.getType());
+        update(new NetworkTablesValue(val, m_localValue.getType()));
     }
 
     /**
@@ -78,8 +106,8 @@ public class NetworkTablesEntry {
      */
     void callListenersOfEventType(NetworkTablesEvent eventTypes, NetworkTablesEntry entry, NetworkTablesValue value) {
         if (m_listeners.get(eventTypes) == null) return;
-        for (NetworkTablesEventListener e : m_listeners.get(eventTypes)) {
-            e.apply(eventTypes);
+        for (NetworkTablesEventListener listener : m_listeners.get(eventTypes)) {
+            listener.apply(eventTypes);
         }
     }
 
@@ -90,5 +118,13 @@ public class NetworkTablesEntry {
      */
     public String getTopic() {
         return m_topic;
+    }
+
+    public int getId() {
+        return m_id;
+    }
+
+    public void setId(int m_id) {
+        this.m_id = m_id;
     }
 }
