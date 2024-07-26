@@ -1,5 +1,6 @@
 package org.frcforftc.networktables;
 
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -8,6 +9,7 @@ import java.util.function.Supplier;
  */
 public class NetworkTablesValue {
     private final Supplier<?> m_value;
+    private final Consumer<?> m_setter;
     private final String m_type;
 
     /**
@@ -51,6 +53,11 @@ public class NetworkTablesValue {
      * @param type   the type of the value
      */
     public NetworkTablesValue(Supplier<?> getter, NetworkTablesValueType type) {
+        this(getter, null, type);
+    }
+
+    public <T> NetworkTablesValue(Supplier<T> getter, Consumer<T> setter, NetworkTablesValueType type) {
+        this.m_setter = setter;
         this.m_value = getter;
         this.m_type = type.typeString;
     }
@@ -80,7 +87,7 @@ public class NetworkTablesValue {
      *
      * @return the supplier providing the value
      */
-    public Supplier<?> getSupplier() {
+    public Supplier<?> getGetter() {
         return m_value;
     }
 
@@ -91,5 +98,9 @@ public class NetworkTablesValue {
      */
     public String getType() {
         return m_type;
+    }
+
+    public Consumer<?> getSetter() {
+        return m_setter;
     }
 }

@@ -95,7 +95,7 @@ public enum NetworkTablesValueType {
      * @param s the string representation of the value type
      * @return the corresponding {@link NetworkTablesValueType}, or {@link NetworkTablesValueType#Unknown} if not found
      */
-    static NetworkTablesValueType getFromString(@NonNull String s) {
+    public static NetworkTablesValueType getFromString(@NonNull String s) {
         for (NetworkTablesValueType val : NetworkTablesValueType.values()) {
             if (Objects.equals(val.typeString, s)) {
                 return val;
@@ -110,7 +110,7 @@ public enum NetworkTablesValueType {
      * @param id the ID of the value type
      * @return the corresponding {@link NetworkTablesValueType}, or {@link NetworkTablesValueType#Unknown} if not found
      */
-    static NetworkTablesValueType getFromId(int id) {
+    public static NetworkTablesValueType getFromId(int id) {
         for (NetworkTablesValueType val : NetworkTablesValueType.values()) {
             if (val.id == id) {
                 return val;
@@ -125,7 +125,7 @@ public enum NetworkTablesValueType {
      * @param value the object to determine the type from
      * @return the corresponding {@link NetworkTablesValueType}, or {@link NetworkTablesValueType#Unknown} if not recognized
      */
-    static NetworkTablesValueType determineType(Object value) {
+    public static NetworkTablesValueType determineType(Object value) {
         if (value instanceof Integer) {
             return NetworkTablesValueType.Int;
         } else if (value instanceof Double) {

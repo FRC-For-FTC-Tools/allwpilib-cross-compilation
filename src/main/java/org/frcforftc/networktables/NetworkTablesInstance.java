@@ -191,6 +191,10 @@ public class NetworkTablesInstance {
         }
     }
 
+    public NT4Server getServer() {
+        return m_server;
+    }
+
     /**
      * Custom exception class for invalid URI syntax errors in NT4Client initialization.
      */

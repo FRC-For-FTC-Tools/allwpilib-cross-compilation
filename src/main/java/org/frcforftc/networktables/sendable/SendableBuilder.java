@@ -17,7 +17,15 @@ import java.util.function.Supplier;
 public abstract class SendableBuilder {
     private final ObjectMapper mapper = new ObjectMapper();
     private final HashMap<String, NetworkTablesValue> properties = new HashMap<>();
+    private final Sendable sendable;
     private String m_type;
+
+
+    public SendableBuilder(Sendable sendable) {
+        this.sendable = sendable;
+        sendable.initSendable(this);
+    }
+
 
     /**
      * Sets the type of the SmartDashboard that this builder will be used for.
@@ -46,7 +54,7 @@ public abstract class SendableBuilder {
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
-    public void addDoubleArrayProperty(String key, Supplier<Double[]> getter, Consumer<Double[]> setter) {
+    public void addDoubleArrayProperty(String key, Supplier<double[]> getter, Consumer<double[]> setter) {
         addProperty(key, NetworkTablesValueType.DoubleArray, getter, setter);
     }
 
@@ -68,7 +76,7 @@ public abstract class SendableBuilder {
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
-    public void addBooleanArrayProperty(String key, Supplier<Boolean[]> getter, Consumer<Boolean[]> setter) {
+    public void addBooleanArrayProperty(String key, Supplier<boolean[]> getter, Consumer<boolean[]> setter) {
         addProperty(key, NetworkTablesValueType.BooleanArray, getter, setter);
     }
 
@@ -101,7 +109,7 @@ public abstract class SendableBuilder {
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
-    public void addRawProperty(String key, Supplier<Byte[]> getter, Consumer<Byte[]> setter) {
+    public void addRawProperty(String key, Supplier<byte[]> getter, Consumer<byte[]> setter) {
         addProperty(key, NetworkTablesValueType.Raw, getter, setter);
     }
 
@@ -134,7 +142,7 @@ public abstract class SendableBuilder {
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
-    public void addIntArrayProperty(String key, Supplier<Integer[]> getter, Consumer<Integer[]> setter) {
+    public void addIntArrayProperty(String key, Supplier<int[]> getter, Consumer<int[]> setter) {
         addProperty(key, NetworkTablesValueType.IntArray, getter, setter);
     }
 
@@ -145,7 +153,7 @@ public abstract class SendableBuilder {
      * @param getter a supplier that provides the current value of the property
      * @param setter a consumer that sets the value of the property
      */
-    public void addFloatArrayProperty(String key, Supplier<Float[]> getter, Consumer<Float[]> setter) {
+    public void addFloatArrayProperty(String key, Supplier<float[]> getter, Consumer<float[]> setter) {
         addProperty(key, NetworkTablesValueType.FloatArray, getter, setter);
     }
 
@@ -159,14 +167,16 @@ public abstract class SendableBuilder {
      * @param <T>    the type of the property value
      */
     private <T> void addProperty(String key, NetworkTablesValueType type, Supplier<T> getter, Consumer<T> setter) {
-        NetworkTablesValue value = new NetworkTablesValue(getter, type);
+        NetworkTablesValue value = new NetworkTablesValue(getter, setter, type);
 
         NetworkTablesValue containedValue = properties.get(key);
         if (containedValue != null && !Objects.equals(containedValue.getType(), type.typeString)) {
             throw new RuntimeException(String.format("Non matching types for topic %s (%s and %s)", key, type.typeString, containedValue.getType()));
+        } else {
+            containedValue = value;
         }
 
-        properties.put(key, value);
+        properties.put(key, containedValue);
     }
 
     /**
@@ -275,12 +285,11 @@ public abstract class SendableBuilder {
      * @param announceMethod the method used to announce the properties
      */
     public void post(String key, AnnounceMethod announceMethod) {
+        System.out.println(properties);
         for (String topic : properties.keySet()) {
             NetworkTablesValue value = properties.get(topic);
 
-            switch (value.getType()) {
-                //TODO: apply the publish method according to the right type
-            }
+            System.out.println(topic);
 
             announceMethod.apply(key + "/" + topic, value.get());
         }

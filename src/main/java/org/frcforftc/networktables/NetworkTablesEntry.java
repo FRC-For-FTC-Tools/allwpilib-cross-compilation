@@ -50,6 +50,10 @@ public class NetworkTablesEntry {
         return m_properties.values().toArray(new NetworkTablesEntry[0]);
     }
 
+    public NetworkTablesEntry getProperty(String key) {
+        return m_properties.get(key);
+    }
+
     /**
      * Adds a listener for specific events to this entry.
      *

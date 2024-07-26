@@ -30,15 +30,13 @@ import java.util.concurrent.CopyOnWriteArraySet;
  */
 public class NT4Server extends WebSocketServer {
     /**
-     * Map of publisher unique IDs to NetworkTablesEntry objects
-     */
-    static final Map<Long, NetworkTablesEntry> m_publisherUIDSMap = new ConcurrentHashMap<>();
-
-    /**
      * Map of topic names to NetworkTablesEntry objects
      */
-    static final Map<String, NetworkTablesEntry> m_entries = new ConcurrentHashMap<>();
-
+    private static final Map<String, NetworkTablesEntry> m_entries = new ConcurrentHashMap<>();
+    /**
+     * Map of publisher unique IDs to NetworkTablesEntry objects
+     */
+    private static final Map<Long, NetworkTablesEntry> m_publisherUIDSMap = new ConcurrentHashMap<>();
     /**
      * Singleton instance of NT4Server
      */
@@ -97,6 +95,10 @@ public class NT4Server extends WebSocketServer {
         }
 
         return m_server;
+    }
+
+    public NetworkTablesEntry getSubTable(String path) {
+        return m_entries.get("/" + path);
     }
 
     @Override
