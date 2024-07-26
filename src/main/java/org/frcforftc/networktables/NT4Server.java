@@ -367,9 +367,8 @@ public class NT4Server extends WebSocketServer {
                     System.err.println("Error decoding data value: " + e.getMessage());
                     e.printStackTrace();
                 }
-
-                if (m_publisherUIDSMap.containsKey((int) topicID)) {
-                    NetworkTablesEntry entry = m_publisherUIDSMap.get((int) topicID);
+                if (m_publisherUIDSMap.containsKey(topicID)) {
+                    NetworkTablesEntry entry = m_publisherUIDSMap.get(topicID);
                     if (dataValue != entry.getValue().get()) {
                         NetworkTablesValue newValue = new NetworkTablesValue(dataValue, NetworkTablesValueType.determineType(dataValue));
                         entry.update(newValue);
@@ -496,7 +495,7 @@ public class NT4Server extends WebSocketServer {
      * @param topic the topic name
      * @param value the initial value of the topic
      */
-    public void createTopic(String topic, Object value) {
+    public NetworkTablesEntry createTopic(String topic, Object value) {
         // Create the message object
         ObjectNode message = m_objectMapper.createObjectNode();
         message.put("method", "announce");
@@ -541,6 +540,56 @@ public class NT4Server extends WebSocketServer {
         messagesArray.add(message);
         // Broadcast the message to all connected clients
         broadcast(messagesArray.toString());
+        return entry;
+    }
+
+    public NetworkTablesEntry createTopic(String topic, NetworkTablesValue value) {
+        // Create the message object
+        ObjectNode message = m_objectMapper.createObjectNode();
+        message.put("method", "announce");
+
+        // Create params object
+        ObjectNode params = m_objectMapper.createObjectNode();
+        params.put("name", "/" + topic);
+        String typeString = value.getType().typeString;
+
+        NetworkTablesEntry entry = new NetworkTablesEntry(topic, value);
+
+        int id;
+        if (m_entries.containsKey(topic)) {
+            id = m_entries.get(topic).id;
+            entry = m_entries.get(topic);
+
+            if (value != entry.getValue().get()) {
+//                System.out.println("Value updated from: " + entry.getValue().get().toString() + " to: " + value.toString());
+                if (NetworkTablesValueType.determineType(value) != NetworkTablesValueType.Unknown) // Prevents issue that is caused when client gets disconnected while server is running
+                    m_entries.get(topic).update(value);
+            }
+
+        } else {
+            id = m_entries.size() + 1;
+            entry.id = m_entries.size() + 1;
+            m_entries.put(topic, entry);
+        }
+        params.put("id", id); // Set a unique topic ID
+
+        params.put("type", typeString);
+        params.put("pubuid", id); // Use the publisher ID
+
+        ObjectNode properties = m_objectMapper.createObjectNode();
+        // Add any properties here if needed
+        params.set("properties", properties);
+
+        // Attach params to the message
+        message.set("params", params);
+
+        // Create an array of messages if needed
+        ArrayNode messagesArray = m_objectMapper.createArrayNode();
+        messagesArray.add(message);
+        // Broadcast the message to all connected clients
+        broadcast(messagesArray.toString());
+
+        return entry;
     }
 
     public Map<String, NetworkTablesEntry> getEntries() {
