@@ -74,12 +74,12 @@ public class NT4Server extends WebSocketServer {
      *
      * @return the created NT4Server instance
      */
-    public static NT4Server createInstance() {
+    public static NT4Server createInstance(int port) {
         ArrayList<IProtocol> protocols = new ArrayList<IProtocol>();
         protocols.add(new Protocol("v4.1.networktables.first.wpi.edu"));
         protocols.add(new Protocol("rtt.networktables.first.wpi.edu"));
         Draft_6455 draft_protocols = new Draft_6455(Collections.emptyList(), protocols);
-        m_server = new NT4Server(new InetSocketAddress("localhost", 5810), draft_protocols);
+        m_server = new NT4Server(new InetSocketAddress("localhost", port), draft_protocols);
 
         if (m_shutdownHookAdded) {
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -433,15 +433,15 @@ public class NT4Server extends WebSocketServer {
             m_clientSubscriptions.computeIfAbsent(topic, k -> new CopyOnWriteArraySet<>()).add(conn);
             conn.send(encodeNT4Message(System.currentTimeMillis(), m_entries.get(topic).getId(), 0, NetworkTablesValueType.getFromString(m_entries.get(topic).getValue().getType()).id, m_entries.get(topic).getValue().getAs()));
             if (topic.contains(".type")) {
-                for (Map.Entry<String, NetworkTablesEntry> entry: m_entries.entrySet()) {
+                for (Map.Entry<String, NetworkTablesEntry> entry : m_entries.entrySet()) {
                     if (entry.getKey().contains(m_entries.get(topic).getTopic().replaceAll(".type", ""))) {
                         conn.send(encodeNT4Message(System.currentTimeMillis(), m_entries.get(entry.getKey()).getId(), 0, NetworkTablesValueType.getFromString(entry.getValue().getValue().getType()).id, entry.getValue().getValue().getAs()));
                     }
                 }
             }
         } else {
-            if (m_entries.containsKey(topic+"/.type")) {
-                for (Map.Entry<String, NetworkTablesEntry> entry: m_entries.entrySet()) {
+            if (m_entries.containsKey(topic + "/.type")) {
+                for (Map.Entry<String, NetworkTablesEntry> entry : m_entries.entrySet()) {
                     if (entry.getKey().contains(topic)) {
                         conn.send(encodeNT4Message(System.currentTimeMillis(), m_entries.get(entry.getKey()).getId(), 0, NetworkTablesValueType.getFromString(entry.getValue().getValue().getType()).id, entry.getValue().getValue().getAs()));
                     }

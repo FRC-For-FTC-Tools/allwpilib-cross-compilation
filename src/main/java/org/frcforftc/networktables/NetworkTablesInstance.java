@@ -58,8 +58,8 @@ public class NetworkTablesInstance {
      * Creates an instance of {@link NT4Server}, initializes it, and starts it.
      * This method should be called before any client operations can occur.
      */
-    public void startNT4Server() {
-        this.m_server = NT4Server.createInstance();
+    public void startNT4Server(int port) {
+        this.m_server = NT4Server.createInstance(port);
         m_server.start();
     }
 

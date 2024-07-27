@@ -9,7 +9,7 @@ import java.util.function.Supplier;
 public class Main {
     public static void main(String[] args) {
         NetworkTablesInstance inst = NetworkTablesInstance.getDefaultInstance();
-        inst.startNT4Server();
+        inst.startNT4Server(5810);
         inst.putNumber("test1", 1);
         inst.putStringArray("test2", new String[]{"t", "b", "c"});
 
