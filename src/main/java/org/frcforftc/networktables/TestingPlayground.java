@@ -6,10 +6,10 @@ import org.frcforftc.networktables.sendable.SendableBuilder;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class Main {
+class TestingPlayground {
     public static void main(String[] args) {
         NetworkTablesInstance inst = NetworkTablesInstance.getDefaultInstance();
-        inst.startNT4Server(5810);
+        inst.startNT4Server("localhost", 5810);
         inst.putNumber("test1", 1);
         inst.putStringArray("test2", new String[]{"t", "b", "c"});
 

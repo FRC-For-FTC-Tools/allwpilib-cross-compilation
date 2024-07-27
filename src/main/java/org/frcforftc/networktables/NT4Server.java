@@ -74,13 +74,13 @@ public class NT4Server extends WebSocketServer {
      *
      * @return the created NT4Server instance
      */
-    public static NT4Server createInstance(int port) {
+    public static NT4Server createInstance(String address, int port) {
         ArrayList<IProtocol> protocols = new ArrayList<IProtocol>();
         protocols.add(new Protocol("v4.1.networktables.first.wpi.edu"));
         protocols.add(new Protocol("rtt.networktables.first.wpi.edu"));
         Draft_6455 draft_protocols = new Draft_6455(Collections.emptyList(), protocols);
-        m_server = new NT4Server(new InetSocketAddress("localhost", port), draft_protocols);
-
+        m_server = new NT4Server(new InetSocketAddress(address, port), draft_protocols);
+        m_server.setConnectionLostTimeout(Integer.MAX_VALUE);
         if (m_shutdownHookAdded) {
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 try {
@@ -103,6 +103,7 @@ public class NT4Server extends WebSocketServer {
 
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
+        setConnectionLostTimeout(Integer.MAX_VALUE);
         m_connections.add(conn);
         String subprotocol = handshake.getFieldValue("Sec-WebSocket-Protocol");
         System.out.println("CLIENT CONNECTED with " + subprotocol);
