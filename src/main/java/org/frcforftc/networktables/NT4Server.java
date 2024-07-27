@@ -432,6 +432,14 @@ public class NT4Server extends WebSocketServer {
             System.out.println("SUBSCRIBED: " + topic);
             m_clientSubscriptions.computeIfAbsent(topic, k -> new CopyOnWriteArraySet<>()).add(conn);
             conn.send(encodeNT4Message(System.currentTimeMillis(), m_entries.get(topic).getId(), 0, NetworkTablesValueType.getFromString(m_entries.get(topic).getValue().getType()).id, m_entries.get(topic).getValue().getAs()));
+            if (topic.contains(".type")) {
+                for (Map.Entry<String, NetworkTablesEntry> entry: m_entries.entrySet()) {
+                    if (entry.getKey().contains(m_entries.get(topic).getTopic().replaceAll(".type", ""))) {
+                        conn.send(encodeNT4Message(System.currentTimeMillis(), m_entries.get(entry.getKey()).getId(), 0, NetworkTablesValueType.getFromString(entry.getValue().getValue().getType()).id, entry.getValue().getValue().getAs()));
+                        System.out.println("SUBSCRIBED 1: " + entry.getKey());
+                    }
+                }
+            }
         } else {
             System.out.println("FAILED TO SUBSCRIBE TO " + topic + " AVAILABLE TOPICS ARE:");
             System.out.println(m_entries.keySet());
