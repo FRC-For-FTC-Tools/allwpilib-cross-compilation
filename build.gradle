@@ -19,7 +19,7 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.0'
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.13.0'
 
-    implementation 'org.java-websocket:Java-WebSocket:1.5.2'
+    implementation 'org.java-websocket:Java-WebSocket:1.4.1'
 
     //#region Remove for FTC SDK to work
 //    runtimeOnly 'org.slf4j:slf4j-api:1.7.36'

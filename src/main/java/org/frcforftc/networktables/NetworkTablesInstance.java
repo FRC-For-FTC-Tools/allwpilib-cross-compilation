@@ -1,5 +1,6 @@
 package org.frcforftc.networktables;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -177,6 +178,8 @@ public class NetworkTablesInstance {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt(); // Restore interrupt status
             throw new ServerStopException("Interrupted while stopping the NT4 server.", e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
