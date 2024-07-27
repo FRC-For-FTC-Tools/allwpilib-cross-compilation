@@ -162,10 +162,17 @@ public class NT4Server extends WebSocketServer {
             } else {
                 if (m_publisherUIDSMap.containsKey(decodedMessage.id)) {
                     NetworkTablesEntry entry = m_publisherUIDSMap.get(decodedMessage.id);
-                    entry.update(new NetworkTablesValue(decodedMessage.dataValue, NetworkTablesValueType.getFromId(decodedMessage.dataType)));
-                    for (Set<WebSocket> subscribers : m_clientSubscriptions.values()) {
-                        broadcast(encodeNT4Message(System.currentTimeMillis(), entry.getId(), decodedMessage.id, decodedMessage.dataType, decodedMessage.dataValue), subscribers);
+                    if (decodedMessage.dataValue != entry.getValue().get()) {
+                        NetworkTablesValue newValue = new NetworkTablesValue(decodedMessage.dataValue, entry.getValue().getType());
+
+                        entry.update(newValue);
+                        m_publisherUIDSMap.replace(decodedMessage.id, entry);
+                        entry.callListenersOfEventType(NetworkTablesEvent.kTopicUpdated, entry, newValue);
+                        for (Set<WebSocket> subscribers : m_clientSubscriptions.values()) {
+                            broadcast(encodeNT4Message(System.currentTimeMillis(), entry.getId(), decodedMessage.id, decodedMessage.dataType, decodedMessage.dataValue), subscribers);
+                        }
                     }
+
                 }
             }
         } catch (Exception e) {
@@ -370,14 +377,7 @@ public class NT4Server extends WebSocketServer {
                     e.printStackTrace();
                 }
                 if (m_publisherUIDSMap.containsKey(topicID)) {
-                    NetworkTablesEntry entry = m_publisherUIDSMap.get(topicID);
-                    if (dataValue != entry.getValue().get()) {
-                        NetworkTablesValue newValue = new NetworkTablesValue(dataValue, NetworkTablesValueType.determineType(dataValue));
 
-                        entry.update(newValue);
-                        m_publisherUIDSMap.replace(topicID, entry);
-                        entry.callListenersOfEventType(NetworkTablesEvent.kTopicUpdated, entry, newValue);
-                    }
                 }
                 // Process the decoded message
                 return new NetworkTablesMessage(topicID, stamp, dataType, dataValue);
@@ -436,11 +436,17 @@ public class NT4Server extends WebSocketServer {
                 for (Map.Entry<String, NetworkTablesEntry> entry: m_entries.entrySet()) {
                     if (entry.getKey().contains(m_entries.get(topic).getTopic().replaceAll(".type", ""))) {
                         conn.send(encodeNT4Message(System.currentTimeMillis(), m_entries.get(entry.getKey()).getId(), 0, NetworkTablesValueType.getFromString(entry.getValue().getValue().getType()).id, entry.getValue().getValue().getAs()));
-                        System.out.println("SUBSCRIBED 1: " + entry.getKey());
                     }
                 }
             }
         } else {
+            if (m_entries.containsKey(topic+"/.type")) {
+                for (Map.Entry<String, NetworkTablesEntry> entry: m_entries.entrySet()) {
+                    if (entry.getKey().contains(topic)) {
+                        conn.send(encodeNT4Message(System.currentTimeMillis(), m_entries.get(entry.getKey()).getId(), 0, NetworkTablesValueType.getFromString(entry.getValue().getValue().getType()).id, entry.getValue().getValue().getAs()));
+                    }
+                }
+            }
             System.out.println("FAILED TO SUBSCRIBE TO " + topic + " AVAILABLE TOPICS ARE:");
             System.out.println(m_entries.keySet());
         }
@@ -522,6 +528,7 @@ public class NT4Server extends WebSocketServer {
         if (m_entries.containsKey(topic)) {
             id = m_entries.get(topic).getId();
             entry = m_entries.get(topic);
+            typeString = entry.getValue().getType();
 
             if (value != entry.getValue().get()) {
 //                System.out.println("Value updated from: " + entry.getValue().get().toString() + " to: " + value.toString());
