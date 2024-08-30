@@ -62,6 +62,12 @@ public class NetworkTablesValue {
         this.m_type = type.typeString;
     }
 
+    public <T> NetworkTablesValue(Supplier<T> getter, Consumer<T> setter, String type) {
+        this.m_setter = setter;
+        this.m_value = getter;
+        this.m_type = type;
+    }
+
     /**
      * Retrieves the value as a specific type.
      *

@@ -33,14 +33,14 @@ public class NT4Client extends WebSocketClient {
 
     @Override
     public void onOpen(ServerHandshake handshakedata) {
-        System.out.println("Connected to server");
+//        System.out.println("Connected to server");
     }
 
     @Override
     public void onMessage(String message) {
         try {
             JsonNode data = objectMapper.readTree(message);
-            System.out.println(message);
+//            System.out.println(message);
             processMessage(data);
         } catch (Exception e) {
             e.printStackTrace();
@@ -61,7 +61,7 @@ public class NT4Client extends WebSocketClient {
 
     @Override
     public void onClose(int code, String reason, boolean remote) {
-        System.out.println("Disconnected from server");
+//        System.out.println("Disconnected from server");
     }
 
     @Override
@@ -268,6 +268,6 @@ public class NT4Client extends WebSocketClient {
 
     private void processMessage(long topicId, long timestamp, int dataType, Object dataValue) {
         // Implement message processing logic here
-        System.out.println("Received data - Topic ID: " + topicId + ", Timestamp: " + timestamp + ", Data Type: " + dataType + ", Data Value: " + dataValue);
+//        System.out.println("Received data - Topic ID: " + topicId + ", Timestamp: " + timestamp + ", Data Type: " + dataType + ", Data Value: " + dataValue);
     }
 }

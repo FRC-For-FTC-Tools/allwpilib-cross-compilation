@@ -101,6 +101,7 @@ public enum NetworkTablesValueType {
                 return val;
             }
         }
+
         return NetworkTablesValueType.Unknown;
     }
 

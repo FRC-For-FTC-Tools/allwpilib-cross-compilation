@@ -84,10 +84,10 @@ public class NT4Server extends WebSocketServer {
         if (m_shutdownHookAdded) {
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 try {
-                    System.out.println("Shutting down server...");
+//                    System.out.println("Shutting down server...");
                     m_server.stop(0);
                 } catch (InterruptedException e) {
-                    System.err.println("Server shutdown interrupted");
+//                    System.err.println("Server shutdown interrupted");
                     Thread.currentThread().interrupt();
                 }
             }));
@@ -106,7 +106,7 @@ public class NT4Server extends WebSocketServer {
         setConnectionLostTimeout(Integer.MAX_VALUE);
         m_connections.add(conn);
         String subprotocol = handshake.getFieldValue("Sec-WebSocket-Protocol");
-        System.out.println("CLIENT CONNECTED with " + subprotocol);
+//        System.out.println("CLIENT CONNECTED with " + subprotocol);
 
         for (String s : subprotocol.split(", ")) {
             if (s.equals("v4.1.networktables.first.wpi.edu")) {
@@ -188,7 +188,7 @@ public class NT4Server extends WebSocketServer {
 
     @Override
     public void onStart() {
-        System.out.println("Server started successfully!");
+//        System.out.println("Server started successfully!");
     }
 
     /**
@@ -374,7 +374,7 @@ public class NT4Server extends WebSocketServer {
                             throw new IOException("Unknown data type: " + dataType);
                     }
                 } catch (MessageInsufficientBufferException | IOException e) {
-                    System.err.println("Error decoding data value: " + e.getMessage());
+//                    System.err.println("Error decoding data value: " + e.getMessage());
                     e.printStackTrace();
                 }
                 if (m_publisherUIDSMap.containsKey(topicID)) {
@@ -384,7 +384,7 @@ public class NT4Server extends WebSocketServer {
                 return new NetworkTablesMessage(topicID, stamp, dataType, dataValue);
             }
         } catch (MessageInsufficientBufferException | IOException e) {
-            System.err.println("Error decoding NT4 message: " + e.getMessage());
+//            System.err.println("Error decoding NT4 message: " + e.getMessage());
             e.printStackTrace();
         }
 
@@ -430,7 +430,7 @@ public class NT4Server extends WebSocketServer {
     private void handleSubscribe(WebSocket conn, JsonNode data) throws IOException {
         String topic = data.get("params").get("topics").get(0).asText().substring(1); // Removes the root "/" from the topic path
         if (m_entries.containsKey(topic)) {
-            System.out.println("SUBSCRIBED: " + topic);
+//            System.out.println("SUBSCRIBED: " + topic);
             m_clientSubscriptions.computeIfAbsent(topic, k -> new CopyOnWriteArraySet<>()).add(conn);
             conn.send(encodeNT4Message(System.currentTimeMillis(), m_entries.get(topic).getId(), 0, NetworkTablesValueType.getFromString(m_entries.get(topic).getValue().getType()).id, m_entries.get(topic).getValue().getAs()));
             if (topic.contains(".type")) {
@@ -448,8 +448,8 @@ public class NT4Server extends WebSocketServer {
                     }
                 }
             }
-            System.out.println("FAILED TO SUBSCRIBE TO " + topic + " AVAILABLE TOPICS ARE:");
-            System.out.println(m_entries.keySet());
+//            System.out.println("FAILED TO SUBSCRIBE TO " + topic + " AVAILABLE TOPICS ARE:");
+//            System.out.println(m_entries.keySet());
         }
     }
 
